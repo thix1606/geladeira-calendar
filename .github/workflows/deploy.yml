@@ -19,9 +19,12 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          # Patch: neutraliza ForkTsChecker no react-dev-utils (projeto é JS puro)
-          echo 'module.exports = function() {};' > node_modules/react-dev-utils/ForkTsCheckerWebpackPlugin.js
-          echo 'module.exports = function() {};' > node_modules/react-dev-utils/ForkTsCheckerWarningWebpackPlugin.js
+          # Patch: neutraliza ForkTsChecker em todos os lugares
+          find node_modules -name 'ForkTsCheckerWebpackPlugin.js' -not -path '*/fork-ts-checker-webpack-plugin/out/*' | xargs -I{} sh -c 'echo "module.exports = function() {};" > {}'
+          find node_modules -name 'ForkTsCheckerWarningWebpackPlugin.js' | xargs -I{} sh -c 'echo "module.exports = function() {};" > {}'
+          # Fix ajv conflict no fork-ts-checker
+          find node_modules/fork-ts-checker-webpack-plugin -name 'ajv' -type d | head -5
+          find node_modules -path '*/fork-ts-checker-webpack-plugin/node_modules/ajv-keywords/keywords/_formatLimit.js' | xargs -I{} sh -c 'echo "module.exports = {};" > {}'
 
       - name: Build
         run: npm run build

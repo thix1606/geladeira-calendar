@@ -23,6 +23,7 @@ function App() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForDate, setAddForDate] = useState(null);
   const [floatingEmojis, setFloatingEmojis] = useState([]);
+  const [todayPulse, setTodayPulse] = useState(false);
 
   const [pinUnlocked, setPinUnlocked] = useState(() => isPinSessionValid());
 
@@ -150,6 +151,16 @@ function App() {
 
   // ── Auth ──────────────────────────────────────────────────
 
+  const handleGoToday = useCallback(() => {
+    const now = new Date();
+    setCurrentDate(now);
+    fetchEvents(now.getFullYear(), now.getMonth() + 1);
+    // Dispara animação no dia atual
+    setTodayPulse(false);
+    requestAnimationFrame(() => requestAnimationFrame(() => setTodayPulse(true)));
+    setTimeout(() => setTodayPulse(false), 1800);
+  }, [fetchEvents]);
+
   const handleSignOut = useCallback(async () => {
     clearPinSession();
     setPinUnlocked(false);
@@ -222,6 +233,7 @@ function App() {
           dayColors={getRawDayColors()}
           dateKey={dateKey}
           colorsConfig={colorsConfig}
+          todayPulse={todayPulse}
         />
       ) : (
         <DayView
@@ -257,6 +269,13 @@ function App() {
           >
             <span className="fab-plus">+</span>
             <span className="fab-label">Novo</span>
+          </button>
+          <button
+            className="fab-today"
+            onClick={handleGoToday}
+            aria-label="Ir para hoje"
+          >
+            Hoje
           </button>
           <button
             className="fab-settings"

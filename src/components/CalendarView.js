@@ -47,7 +47,7 @@ const DAY_COLOR_HEX = {
   red:     '#FF6B6B',
 };
 
-const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey, colorsConfig = [], onOpenSettings }) => {
+const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey, colorsConfig = [], onOpenSettings, todayPulse = false }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -146,9 +146,8 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
                 isSunday(day) ? "sunday" : "",
                 isSaturday(day) ? "saturday" : "",
                 hasEvents ? "has-events" : "",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+                isToday(day) && todayPulse ? "today-pulse" : "",
+              ].filter(Boolean).join(" ")}
               onClick={() => onDayPress(new Date(year, month, day))}
               aria-label={`Dia ${day}${hasEvents ? `, ${dayEvents.length} evento(s)` : ""}`}
               style={(() => {

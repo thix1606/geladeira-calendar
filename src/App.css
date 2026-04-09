@@ -808,7 +808,7 @@ html, body {
 /* Emoji picker */
 .emoji-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -823,7 +823,6 @@ html, body {
   justify-content: center;
   cursor: pointer;
   transition: border-color 0.12s, transform 0.12s, background 0.12s;
-  min-height: 52px;
 }
 
 .emoji-btn.selected {

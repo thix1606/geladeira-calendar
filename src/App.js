@@ -71,17 +71,24 @@ function App() {
     setSelectedDate(null);
   }, []);
 
-  // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener
-  // viewRef mantém o valor atual de view sem precisar recriar o handler a cada render
-  const viewRef = React.useRef(view);
-  useEffect(() => { viewRef.current = view; }, [view]);
+  // Refs para o handler estável de back (sem stale closure)
+  const viewRef         = React.useRef(view);
+  const showModalRef    = React.useRef(showAddModal);
+  useEffect(() => { viewRef.current      = view;         }, [view]);
+  useEffect(() => { showModalRef.current = showAddModal; }, [showAddModal]);
 
+  // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener.
+  // Prioridade: 1) fecha modal aberto  2) volta pra month  3) mantém guard (fica no app)
   useEffect(() => {
     window.history.replaceState({ app: true }, "");
     window.history.pushState({ app: true }, "");
 
     const onPopState = () => {
       window.history.pushState({ app: true }, "");
+      if (showModalRef.current) {
+        setShowAddModal(false);
+        return;
+      }
       if (viewRef.current === "day" || viewRef.current === "settings") {
         handleBackToMonth();
       }

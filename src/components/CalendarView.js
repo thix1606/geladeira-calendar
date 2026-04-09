@@ -45,7 +45,7 @@ const DAY_COLOR_HEX = {
   red:     '#FF6B6B',
 };
 
-const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey }) => {
+const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey, colorsConfig = [], onOpenSettings }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -108,8 +108,9 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
         </button>
       </div>
 
-      {/* Sair */}
-      <div style={{ paddingRight: 16, display: "flex", justifyContent: "flex-end", marginBottom: 4 }}>
+      {/* Ações */}
+      <div style={{ paddingRight: 16, paddingLeft: 16, display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <button className="signout-btn" onClick={onOpenSettings} style={{ background: "none", border: "none", fontSize: "1.4rem", cursor: "pointer", padding: "4px 8px" }} title="Configurações">⚙️</button>
         <button className="signout-btn" onClick={onSignOut}>Sair</button>
       </div>
 
@@ -154,11 +155,33 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
               aria-label={`Dia ${day}${hasEvents ? `, ${dayEvents.length} evento(s)` : ""}`}
               style={(() => {
                 const key = dateKey?.(new Date(year, month, day));
-                const color = key && dayColors[key] ? DAY_COLOR_HEX[dayColors[key]] : null;
-                return color ? { background: color + '33', borderColor: color + '99' } : {};
+                const colorId = key ? dayColors[key] : null;
+                const colorDef = colorId ? colorsConfig.find((c) => c.id === colorId) : null;
+                const hex = colorDef?.hex ?? (colorId ? DAY_COLOR_HEX[colorId] : null);
+                return hex ? { background: hex + '33', borderColor: hex + '99' } : {};
               })()}
             >
-              <span className="day-num">{day}</span>
+              <span className="day-num" style={{ position: 'relative' }}>
+                {day}
+                {(() => {
+                  const key = dateKey?.(new Date(year, month, day));
+                  const colorId = key ? dayColors[key] : null;
+                  const colorDef = colorId ? colorsConfig.find((c) => c.id === colorId) : null;
+                  if (!colorDef) return null;
+                  return (
+                    <span style={{
+                      position: 'absolute', top: -4, right: -6,
+                      width: 14, height: 14, borderRadius: '50%',
+                      background: colorDef.hex,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.45rem', fontWeight: 900, color: '#fff',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                    }}>
+                      {colorDef.name.charAt(0).toUpperCase()}
+                    </span>
+                  );
+                })()} 
+              </span>
               {hasEvents && (
                 <div className="day-events-preview">
                   {preview.map((ev) => (

@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import useGoogleCalendar from "./hooks/useGoogleCalendar";
-import { useDayColors } from "./hooks/useDayColors";
+import { useDayColors, dateKey } from "./hooks/useDayColors";
 import CalendarView from "./components/CalendarView";
 import DayView from "./components/DayView";
 import AddEventModal from "./components/AddEventModal";
@@ -8,57 +8,54 @@ import LoginScreen from "./components/LoginScreen";
 import PinScreen, { isPinSessionValid, clearPinSession } from "./components/PinScreen";
 import BlockedScreen from "./components/BlockedScreen";
 import ErrorScreen from "./components/ErrorScreen";
+import ColorsConfigScreen from "./components/ColorsConfigScreen";
 import { BUILD_API_KEY, BUILD_CLIENT_ID } from "./googleConfig";
 import "./App.css";
+
+// Título do evento automático de cor
+function colorEventTitle(colorName) { return `📌 Dia com ${colorName}`; }
+function isColorEvent(ev) { return (ev.summary || "").startsWith("📌 Dia com "); }
 
 function App() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
-  const [view, setView] = useState("month");
+  const [view, setView] = useState("month"); // "month" | "day" | "settings"
   const [showAddModal, setShowAddModal] = useState(false);
   const [addForDate, setAddForDate] = useState(null);
   const [floatingEmojis, setFloatingEmojis] = useState([]);
 
-  // ── Camada 1: PIN ─────────────────────────────────────────
-  // true  → PIN já foi validado nesta sessão (ou sessionStorage ainda válido)
-  // false → precisa mostrar a tela de PIN
   const [pinUnlocked, setPinUnlocked] = useState(() => isPinSessionValid());
 
   const {
-    isSignedIn,
-    isLoading,
-    error,
-    events,
-    blockedEmail,   // Camada 2: e-mail não autorizado
-    signIn,
-    signOut,
-    addEvent,
-    deleteEvent,
-    fetchEvents,
+    isSignedIn, isLoading, error, events,
+    blockedEmail, signIn, signOut, addEvent, deleteEvent, fetchEvents,
   } = useGoogleCalendar();
 
-  const { getColor, setColor, getRawColors, dateKey } = useDayColors();
+  const {
+    colorsConfig, saveColor, removeColor,
+    getDayColor, setDayColor, getRawDayColors,
+  } = useDayColors();
 
-  // Emojis flutuantes decorativos
+  // Emojis flutuantes
   useEffect(() => {
     const emojis = ["⭐","🌈","🦄","🌸","🍭","✨","🎀","🌺","💫","🎈"];
-    const items = Array.from({ length: 12 }, (_, i) => ({
+    setFloatingEmojis(Array.from({ length: 12 }, (_, i) => ({
       id: i,
       emoji: emojis[i % emojis.length],
       left: `${Math.random() * 90}%`,
       delay: `${Math.random() * 8}s`,
       duration: `${12 + Math.random() * 8}s`,
       size: `${1.2 + Math.random() * 1.2}rem`,
-    }));
-    setFloatingEmojis(items);
+    })));
   }, []);
+
+  // ── Navegação ─────────────────────────────────────────────
 
   const handleDayPress = useCallback((date) => {
     setSelectedDate(date);
     setView("day");
     fetchEvents(date.getFullYear(), date.getMonth() + 1);
-    // Empurra estado no histórico para o back do browser funcionar
-    window.history.pushState({ view: 'day' }, '');
+    window.history.pushState({ view: "day" }, "");
   }, [fetchEvents]);
 
   const handleBackToMonth = useCallback(() => {
@@ -66,22 +63,25 @@ function App() {
     setSelectedDate(null);
   }, []);
 
-  // Intercepta o back do browser
   useEffect(() => {
-    const onPopState = (e) => {
-      if (view === 'day') {
-        // Back no DayView → volta pro calendário
+    const onPopState = () => {
+      if (view === "day" || view === "settings") {
         handleBackToMonth();
       } else {
-        // Back no calendário → não faz nada, re-empurra o estado
-        window.history.pushState(null, '');
+        window.history.pushState(null, "");
       }
     };
-    window.addEventListener('popstate', onPopState);
-    // Garante que sempre há um estado no histórico para interceptar
-    window.history.replaceState(null, '');
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener("popstate", onPopState);
+    window.history.replaceState(null, "");
+    return () => window.removeEventListener("popstate", onPopState);
   }, [view, handleBackToMonth]);
+
+  const handleOpenSettings = useCallback(() => {
+    setView("settings");
+    window.history.pushState({ view: "settings" }, "");
+  }, []);
+
+  // ── Eventos ───────────────────────────────────────────────
 
   const handleOpenAddModal = useCallback((date) => {
     setAddForDate(date);
@@ -103,70 +103,101 @@ function App() {
     fetchEvents(d.getFullYear(), d.getMonth() + 1);
   }, [currentDate, fetchEvents]);
 
-  // Logout também limpa a sessão de PIN
+  // ── Cores + eventos automáticos ───────────────────────────
+
+  // Encontra o evento de cor atual para o dia selecionado
+  const colorEventId = useMemo(() => {
+    if (!selectedDate) return null;
+    const dayEv = events.find((ev) => {
+      if (!isColorEvent(ev)) return false;
+      const d = ev.start?.date
+        ? new Date(ev.start.date + "T00:00:00")
+        : ev.start?.dateTime ? new Date(ev.start.dateTime) : null;
+      if (!d) return false;
+      return d.getDate() === selectedDate.getDate() &&
+             d.getMonth() === selectedDate.getMonth() &&
+             d.getFullYear() === selectedDate.getFullYear();
+    });
+    return dayEv?.id ?? null;
+  }, [events, selectedDate]);
+
+  const handleCreateColorEvent = useCallback(async (date, colorName) => {
+    const dateStr = dateKey(date);
+    const [y, m, d] = dateStr.split("-");
+    const result = await addEvent({
+      title: `Dia com ${colorName}`,
+      emoji: "📌",
+      date: new Date(Number(y), Number(m) - 1, Number(d)),
+      startTime: null,
+      endTime: null,
+      color: "pink",
+      notes: "",
+    });
+    if (result) await fetchEvents(date.getFullYear(), date.getMonth() + 1);
+    return result;
+  }, [addEvent, fetchEvents]);
+
+  const handleDeleteColorEvent = useCallback(async (eventId) => {
+    await deleteEvent(eventId);
+    if (selectedDate) await fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+  }, [deleteEvent, fetchEvents, selectedDate]);
+
+  // ── Auth ──────────────────────────────────────────────────
+
   const handleSignOut = useCallback(async () => {
     clearPinSession();
     setPinUnlocked(false);
     await signOut();
   }, [signOut]);
 
-  // ── Guards de renderização ─────────────────────────────────
+  // ── Guards ────────────────────────────────────────────────
 
-  // 1. Carregando
-  if (isLoading) {
-    return (
-      <div className="splash-screen">
-        <div className="splash-content">
-          <div className="splash-emoji">🌟</div>
-          <div className="splash-title">Calendário Mágico</div>
-          <div className="splash-dots"><span /><span /><span /></div>
-        </div>
+  if (isLoading) return (
+    <div className="splash-screen">
+      <div className="splash-content">
+        <div className="splash-emoji">🌟</div>
+        <div className="splash-title">Calendário Mágico</div>
+        <div className="splash-dots"><span /><span /><span /></div>
       </div>
-    );
-  }
+    </div>
+  );
 
-  // 2. Erro de configuração
-  if (error) {
+  if (error) return (
+    <ErrorScreen
+      error={error}
+      buildApiKey={BUILD_API_KEY}
+      buildClientId={BUILD_CLIENT_ID}
+      onRetry={() => window.location.reload()}
+    />
+  );
+
+  if (!pinUnlocked) return <PinScreen onUnlock={() => setPinUnlocked(true)} />;
+  if (blockedEmail) return <BlockedScreen email={blockedEmail} onSignOut={signOut} />;
+  if (!isSignedIn)  return <LoginScreen onLogin={signIn} />;
+
+  // ── App principal ─────────────────────────────────────────
+
+  if (view === "settings") {
     return (
-      <ErrorScreen
-        error={error}
-        buildApiKey={BUILD_API_KEY}
-        buildClientId={BUILD_CLIENT_ID}
-        onRetry={() => window.location.reload()}
+      <ColorsConfigScreen
+        colorsConfig={colorsConfig}
+        onSave={saveColor}
+        onRemove={removeColor}
+        onBack={handleBackToMonth}
       />
     );
   }
 
-  // 3. Camada 1 — PIN
-  if (!pinUnlocked) {
-    return <PinScreen onUnlock={() => setPinUnlocked(true)} />;
-  }
-
-  // 4. Camada 2 — E-mail bloqueado
-  if (blockedEmail) {
-    return <BlockedScreen email={blockedEmail} onSignOut={signOut} />;
-  }
-
-  // 5. Login Google ainda não feito
-  if (!isSignedIn) {
-    return <LoginScreen onLogin={signIn} />;
-  }
-
-  // 6. App principal
   return (
     <div className="app-root">
       <div className="floating-layer" aria-hidden="true">
         {floatingEmojis.map((item) => (
-          <span
-            key={item.id}
-            className="floating-emoji"
-            style={{
-              left: item.left,
-              animationDelay: item.delay,
-              animationDuration: item.duration,
-              fontSize: item.size,
-            }}
-          >
+          <span key={item.id} className="floating-emoji" style={{
+            left: item.left,
+            animationDelay: item.delay,
+            animationDuration: item.duration,
+            fontSize: item.size,
+          }}>
             {item.emoji}
           </span>
         ))}
@@ -179,8 +210,10 @@ function App() {
           onDayPress={handleDayPress}
           onMonthChange={handleMonthChange}
           onSignOut={handleSignOut}
-          dayColors={getRawColors()}
+          onOpenSettings={handleOpenSettings}
+          dayColors={getRawDayColors()}
           dateKey={dateKey}
+          colorsConfig={colorsConfig}
         />
       ) : (
         <DayView
@@ -189,8 +222,12 @@ function App() {
           onBack={handleBackToMonth}
           onAddEvent={() => handleOpenAddModal(selectedDate)}
           onDeleteEvent={deleteEvent}
-          dayColor={getColor(selectedDate)}
-          onSetDayColor={(val) => setColor(selectedDate, val)}
+          dayColor={getDayColor(selectedDate)}
+          colorsConfig={colorsConfig}
+          onSetDayColor={(colorId) => setDayColor(selectedDate, colorId)}
+          onCreateColorEvent={handleCreateColorEvent}
+          onDeleteColorEvent={handleDeleteColorEvent}
+          colorEventId={colorEventId}
         />
       )}
 

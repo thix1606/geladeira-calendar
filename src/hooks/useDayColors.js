@@ -1,60 +1,99 @@
 // ============================================================
-// useDayColors — cores personalizadas por dia (localStorage)
+// useDayColors — cores nomeadas configuráveis + cor por dia
 // ============================================================
-// Chave: "YYYY-MM-DD" → cor hex
 
 import { useState, useCallback } from "react";
 
-const STORAGE_KEY = "cal_day_colors";
+const COLORS_CONFIG_KEY = "cal_colors_config";
+const DAY_COLORS_KEY    = "cal_day_colors";
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}"); } catch { return {}; }
+// Paleta de cores disponíveis
+export const COLOR_PALETTE = [
+  { hex: "#FF6B9D", id: "pink"   },
+  { hex: "#C77DFF", id: "purple" },
+  { hex: "#74C0FC", id: "blue"   },
+  { hex: "#69DB7C", id: "green"  },
+  { hex: "#FFD43B", id: "yellow" },
+  { hex: "#FFA94D", id: "orange" },
+  { hex: "#FF6B6B", id: "red"    },
+  { hex: "#20C997", id: "teal"   },
+];
+
+// Estrutura de uma cor configurada:
+// { id: "pink", hex: "#FF6B9D", name: "Papai" }
+
+function loadColorsConfig() {
+  try { return JSON.parse(localStorage.getItem(COLORS_CONFIG_KEY) || "[]"); } catch { return []; }
 }
 
-function save(map) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
+function saveColorsConfig(list) {
+  localStorage.setItem(COLORS_CONFIG_KEY, JSON.stringify(list));
 }
 
-function dateKey(date) {
+function loadDayColors() {
+  try { return JSON.parse(localStorage.getItem(DAY_COLORS_KEY) || "{}"); } catch { return {}; }
+}
+
+function saveDayColors(map) {
+  localStorage.setItem(DAY_COLORS_KEY, JSON.stringify(map));
+}
+
+export function dateKey(date) {
   if (!date) return null;
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 }
 
-export const DAY_COLOR_OPTIONS = [
-  { label: "Nenhuma",  value: null,      hex: null },
-  { label: "Rosa",     value: "pink",    hex: "#FF6B9D" },
-  { label: "Roxo",     value: "purple",  hex: "#C77DFF" },
-  { label: "Azul",     value: "blue",    hex: "#74C0FC" },
-  { label: "Verde",    value: "green",   hex: "#69DB7C" },
-  { label: "Amarelo",  value: "yellow",  hex: "#FFD43B" },
-  { label: "Laranja",  value: "orange",  hex: "#FFA94D" },
-  { label: "Vermelho", value: "red",     hex: "#FF6B6B" },
-];
-
 export function useDayColors() {
-  const [colors, setColors] = useState(load);
+  const [colorsConfig, setColorsConfig] = useState(loadColorsConfig);
+  const [dayColors, setDayColors]       = useState(loadDayColors);
 
-  const getColor = useCallback((date) => {
+  // ── Configuração de cores ──────────────────────────────
+
+  const saveColor = useCallback((colorDef) => {
+    // colorDef: { id, hex, name }
+    const updated = colorsConfig.filter((c) => c.id !== colorDef.id);
+    updated.push(colorDef);
+    saveColorsConfig(updated);
+    setColorsConfig(updated);
+  }, [colorsConfig]);
+
+  const removeColor = useCallback((colorId) => {
+    const updated = colorsConfig.filter((c) => c.id !== colorId);
+    saveColorsConfig(updated);
+    setColorsConfig(updated);
+  }, [colorsConfig]);
+
+  // ── Cor por dia ───────────────────────────────────────
+
+  const getDayColor = useCallback((date) => {
     const key = dateKey(date);
     if (!key) return null;
-    const value = colors[key];
-    return DAY_COLOR_OPTIONS.find((o) => o.value === value) ?? null;
-  }, [colors]);
+    const colorId = dayColors[key];
+    if (!colorId) return null;
+    return colorsConfig.find((c) => c.id === colorId) ?? null;
+  }, [dayColors, colorsConfig]);
 
-  const setColor = useCallback((date, value) => {
+  const setDayColor = useCallback((date, colorId) => {
     const key = dateKey(date);
     if (!key) return;
-    const updated = { ...colors };
-    if (!value) {
+    const updated = { ...dayColors };
+    if (!colorId) {
       delete updated[key];
     } else {
-      updated[key] = value;
+      updated[key] = colorId;
     }
-    save(updated);
-    setColors(updated);
-  }, [colors]);
+    saveDayColors(updated);
+    setDayColors(updated);
+  }, [dayColors]);
 
-  const getRawColors = useCallback(() => colors, [colors]);
+  const getRawDayColors = useCallback(() => dayColors, [dayColors]);
 
-  return { getColor, setColor, getRawColors, dateKey };
+  return {
+    colorsConfig,
+    saveColor,
+    removeColor,
+    getDayColor,
+    setDayColor,
+    getRawDayColors,
+  };
 }

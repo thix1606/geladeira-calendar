@@ -3,11 +3,13 @@
 // ============================================================
 
 import React, { useState } from "react";
+import ConfirmModal from "./ConfirmModal";
 import { COLOR_PALETTE } from "../hooks/useDayColors";
 
 export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, onSignOut, syncing }) {
-  const [editing, setEditing]       = useState(null); // { id, hex, name } ou null
-  const [nameInput, setNameInput]   = useState("");
+  const [editing,     setEditing]     = useState(null);
+  const [nameInput,   setNameInput]   = useState("");
+  const [confirmExit, setConfirmExit] = useState(false);
 
   function handleSelectPalette(paletteColor) {
     const existing = colorsConfig.find((c) => c.id === paletteColor.id);
@@ -29,7 +31,15 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
 
   return (
     <div style={styles.overlay}>
-      <div style={styles.card}>
+      {confirmExit && (
+        <ConfirmModal
+          title="Sair da conta?"
+          message="Você precisará fazer login novamente para acessar o calendário."
+          onConfirm={() => { setConfirmExit(false); onSignOut(); }}
+          onCancel={() => setConfirmExit(false)}
+        />
+      )}
+      <div style={{ ...styles.card, paddingBottom: '5rem' }}>
         {/* Header */}
         <div style={styles.header}>
           <button style={styles.backBtn} onClick={onBack}>‹</button>
@@ -107,15 +117,7 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
         )}
 
         {/* Lista configuradas */}
-        {/* Logout */}
-        <div style={{ marginTop: '2rem', borderTop: '1px solid #f0e8ff', paddingTop: '1.25rem' }}>
-          <button
-            onClick={onSignOut}
-            style={{ ...styles.btn, ...styles.btnDanger, width: '100%', textAlign: 'center' }}
-          >
-            Sair da conta Google
-          </button>
-        </div>
+
 
         {colorsConfig.length > 0 && (
           <div style={styles.configuredList}>
@@ -131,6 +133,21 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
             ))}
           </div>
         )}
+      </div>
+
+      {/* Rodapé fixo com logout */}
+      <div style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        padding: '1rem 1.5rem',
+        background: 'linear-gradient(to top, #fff 80%, transparent)',
+        maxWidth: 500, margin: '0 auto',
+      }}>
+        <button
+          onClick={() => setConfirmExit(true)}
+          style={{ ...styles.btn, ...styles.btnDanger, width: '100%' }}
+        >
+          Sair da conta Google
+        </button>
       </div>
     </div>
   );

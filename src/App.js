@@ -32,6 +32,7 @@ function App() {
   const {
     isSignedIn, isLoading, error, events, calendarId,
     blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents,
+    needsReAuth, renewAuth,
   } = useGoogleCalendar();
 
   const {
@@ -76,9 +77,13 @@ function App() {
   const viewRef         = React.useRef(view);
   const showModalRef    = React.useRef(showAddModal);
   const showExitRef     = React.useRef(false);
+  const currentDateRef  = React.useRef(currentDate);
+  const fetchEventsRef  = React.useRef(fetchEvents);
   useEffect(() => { viewRef.current      = view;             }, [view]);
   useEffect(() => { showModalRef.current = showAddModal;     }, [showAddModal]);
   useEffect(() => { showExitRef.current  = showExitConfirm;  }, [showExitConfirm]);
+  useEffect(() => { currentDateRef.current = currentDate;    }, [currentDate]);
+  useEffect(() => { fetchEventsRef.current = fetchEvents;    }, [fetchEvents]);
 
   // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener.
   // Prioridade: 1) fecha modal aberto  2) volta pra month  3) mantém guard (fica no app)
@@ -104,7 +109,15 @@ function App() {
         handleBackToMonth();
         return;
       }
-      // Tela principal: pergunta se quer sair
+      // Tela de mês: se estiver num mês diferente do atual, volta ao mês atual
+      const now = new Date();
+      const curr = currentDateRef.current;
+      if (curr.getMonth() !== now.getMonth() || curr.getFullYear() !== now.getFullYear()) {
+        setCurrentDate(now);
+        fetchEventsRef.current(now.getFullYear(), now.getMonth() + 1);
+        return;
+      }
+      // Está no mês atual: pergunta se quer sair
       setShowExitConfirm(true);
     };
     window.addEventListener("popstate", onPopState);
@@ -220,7 +233,21 @@ function App() {
 
   if (!pinUnlocked) return <PinScreen onUnlock={() => setPinUnlocked(true)} />;
   if (blockedEmail) return <BlockedScreen email={blockedEmail} onSignOut={signOut} />;
-  if (!isSignedIn)  return <LoginScreen onLogin={signIn} />;
+  if (needsReAuth && !isSignedIn) return (
+    <div className="login-screen">
+      <div className="login-mascot">🔑</div>
+      <div className="login-title">Sessão Expirada</div>
+      <div className="login-subtitle">
+        Sua sessão com o Google foi encerrada.<br />Toque para reconectar.
+      </div>
+      <button className="login-btn" onClick={renewAuth}>
+        <span className="login-btn-icon">🔄</span>
+        Reconectar
+      </button>
+      <BuildVersion style={{ marginTop: '2rem' }} />
+    </div>
+  );
+  if (!isSignedIn) return <LoginScreen onLogin={signIn} />;
 
   // ── App principal ─────────────────────────────────────────
 
@@ -239,6 +266,39 @@ function App() {
 
   return (
     <div className="app-root">
+      {needsReAuth && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 350,
+          background: 'rgba(58,26,62,0.7)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '2rem', padding: '2rem 1.5rem',
+            width: '100%', maxWidth: 360, textAlign: 'center',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem',
+            fontFamily: "'Nunito', sans-serif",
+          }}>
+            <span style={{ fontSize: '2.5rem' }}>🔑</span>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#3A1A3E', fontFamily: "'Baloo 2', cursive", margin: 0 }}>
+              Sessão Google Expirada
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#8A5A9A', margin: 0, lineHeight: 1.5 }}>
+              Toque em Reconectar para continuar usando o calendário.
+            </p>
+            <button
+              style={{
+                width: '100%', border: 'none', borderRadius: '1rem', padding: '0.9rem',
+                fontSize: '1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.5rem',
+                background: 'linear-gradient(135deg, #C77DFF, #7B2FBE)', color: '#fff',
+              }}
+              onClick={renewAuth}
+            >
+              🔄 Reconectar
+            </button>
+          </div>
+        </div>
+      )}
+
       {showExitConfirm && (
         <div
           onClick={() => setShowExitConfirm(false)}

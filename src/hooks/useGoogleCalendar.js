@@ -86,6 +86,43 @@ function clearToken() {
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
 }
 
+// Renova o token silenciosamente via iframe invisível sem recarregar a página.
+// O app detecta o contexto de iframe em index.js e faz postMessage do hash.
+function silentRefreshViaIframe() {
+  return new Promise((resolve, reject) => {
+    const params = new URLSearchParams({
+      client_id:              GOOGLE_CONFIG.CLIENT_ID,
+      redirect_uri:           window.location.origin + '/',
+      response_type:          'token',
+      scope:                  GOOGLE_CONFIG.SCOPES,
+      prompt:                 'none',
+      include_granted_scopes: 'false',
+    });
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+    let iframe;
+    const cleanup = () => {
+      window.removeEventListener('message', onMessage);
+      try { if (iframe?.parentNode) iframe.parentNode.removeChild(iframe); } catch {}
+    };
+    const tid = setTimeout(() => { cleanup(); reject(new Error('timeout')); }, 15000);
+    function onMessage(e) {
+      if (e.origin !== window.location.origin) return;
+      const data = typeof e.data === 'string' ? e.data : '';
+      if (!data.startsWith('#')) return;
+      clearTimeout(tid);
+      cleanup();
+      const p = Object.fromEntries(new URLSearchParams(data.slice(1)));
+      if (p.access_token) resolve(p);
+      else reject(new Error(p.error || 'no_token'));
+    }
+    window.addEventListener('message', onMessage);
+    iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;opacity:0;width:0;height:0;top:0;left:0;border:0;pointer-events:none;';
+    document.body.appendChild(iframe);
+    iframe.src = authUrl;
+  });
+}
+
 // ── Hook ───────────────────────────────────────────────────
 
 const useGoogleCalendar = () => {
@@ -95,6 +132,7 @@ const useGoogleCalendar = () => {
   const [events, setEvents]             = useState([]);
   const [error, setError]               = useState(null);
   const [blockedEmail, setBlockedEmail] = useState(null);
+  const [needsReAuth, setNeedsReAuth]   = useState(false);
 
   const tokenClientRef = useRef(null);
 
@@ -123,7 +161,7 @@ const useGoogleCalendar = () => {
 
   // ── Autenticação com token ────────────────────────────
 
-  const authenticateWithToken = useCallback(async (accessToken, expiresIn) => {
+  const authenticateWithToken = useCallback(async (accessToken, expiresIn, silent = false) => {
     try {
       window.gapi.client.setToken({ access_token: accessToken });
 
@@ -145,13 +183,18 @@ const useGoogleCalendar = () => {
       // Persiste o token no localStorage
       if (expiresIn) saveToken(accessToken, Number(expiresIn));
 
+      setNeedsReAuth(false);
       setBlockedEmail(null);
       setIsSignedIn(true);
       await ensureCalendarExists();
     } catch (err) {
       console.error("Erro ao autenticar com token:", err);
       clearToken();
-      setError("Erro ao verificar conta Google.");
+      if (silent) {
+        setNeedsReAuth(true); // não mostra tela de erro — mostra overlay de sessão expirada
+      } else {
+        setError("Erro ao verificar conta Google.");
+      }
     }
   }, [ensureCalendarExists]);
 
@@ -209,20 +252,14 @@ const useGoogleCalendar = () => {
             return;
           }
 
-          // Token expirado — tenta reautenticar silenciosamente
-          // Redireciona sem prompt: se o usuário tiver sessão Google ativa, retorna token automaticamente
-          const params = new URLSearchParams({
-            client_id:     GOOGLE_CONFIG.CLIENT_ID,
-            redirect_uri:  window.location.origin + '/',
-            response_type: 'token',
-            scope:         GOOGLE_CONFIG.SCOPES,
-            prompt:        'none', // sem interação do usuário
-            include_granted_scopes: 'false',
-          });
-          // Salva o token expirado no session para não perder referência
-          sessionStorage.setItem('gc_silent_refresh', '1');
-          window.location.replace(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-          return; // página vai recarregar
+          // Token expirado — tenta reautenticar silenciosamente via iframe (sem reload da página)
+          try {
+            const result = await silentRefreshViaIframe();
+            await authenticateWithToken(result.access_token, result.expires_in, true);
+          } catch (err) {
+            console.warn('Silent refresh (init) failed:', err.message);
+            setNeedsReAuth(true);
+          }
         }
 
         setIsLoading(false);
@@ -369,28 +406,60 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId, isSignedIn, fetchEvents]);
 
-  // Renova o token silenciosamente antes de expirar
+  // Renova o token silenciosamente via iframe (sem reload) antes de expirar.
+  // Também verifica ao voltar ao app após a tela escura (visibilitychange).
   useEffect(() => {
     if (!isSignedIn) return;
+
+    async function tryIframeRefresh() {
+      try {
+        const result = await silentRefreshViaIframe();
+        await authenticateWithToken(result.access_token, result.expires_in, true);
+      } catch (err) {
+        console.warn('Background token refresh failed:', err.message);
+        // Só exibe overlay se o token já expirou de fato
+        const exp = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
+        if (exp && Date.now() >= exp) setNeedsReAuth(true);
+      }
+    }
+
+    // Agenda refresh 5 min antes da expiração
     const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
-    if (!expiry) return;
-    const msUntilExpiry = expiry - Date.now();
-    const msUntilRefresh = msUntilExpiry - 5 * 60 * 1000; // 5 min antes de expirar
-    if (msUntilRefresh <= 0) return;
-    const timer = setTimeout(() => {
-      const params = new URLSearchParams({
-        client_id:     GOOGLE_CONFIG.CLIENT_ID,
-        redirect_uri:  window.location.origin + '/',
-        response_type: 'token',
-        scope:         GOOGLE_CONFIG.SCOPES,
-        prompt:        'none',
-        include_granted_scopes: 'false',
-      });
-      sessionStorage.setItem('gc_silent_refresh', '1');
-      window.location.replace(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
-    }, msUntilRefresh);
-    return () => clearTimeout(timer);
-  }, [isSignedIn]);
+    let timer = null;
+    if (expiry) {
+      const msLeft = expiry - Date.now() - 5 * 60 * 1000;
+      if (msLeft > 0) timer = setTimeout(tryIframeRefresh, msLeft);
+      else if (Date.now() < expiry) tryIframeRefresh(); // menos de 5 min restantes
+    }
+
+    // Verifica ao voltar ao app (fridge sai do modo escuro/idle)
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      const exp = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
+      if (exp && Date.now() >= exp - 5 * 60 * 1000) tryIframeRefresh();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [isSignedIn, authenticateWithToken]);
+
+  // Renovação manual de sessão — usa select_account para o usuário escolher a conta
+  // sem precisar redigitar senha (se a sessão Google ainda existir no browser)
+  const renewAuth = useCallback(() => {
+    setNeedsReAuth(false);
+    const params = new URLSearchParams({
+      client_id:              GOOGLE_CONFIG.CLIENT_ID,
+      redirect_uri:           window.location.origin + '/',
+      response_type:          'token',
+      scope:                  GOOGLE_CONFIG.SCOPES,
+      prompt:                 'select_account',
+      include_granted_scopes: 'false',
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
+  }, []);
 
   // Move ou copia um evento para outra data
   const moveOrCopyEvent = useCallback(async (eventId, targetDate, mode) => {
@@ -440,7 +509,7 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId, events]);
 
-  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents };
+  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, needsReAuth, signIn, signOut, renewAuth, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents };
 };
 
 export default useGoogleCalendar;

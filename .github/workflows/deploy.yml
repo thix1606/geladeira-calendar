@@ -26,6 +26,7 @@ jobs:
           REACT_APP_GOOGLE_CLIENT_ID: ${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}
           REACT_APP_GOOGLE_API_KEY: ${{ secrets.REACT_APP_GOOGLE_API_KEY }}
           CI: false
+          NODE_OPTIONS: --openssl-legacy-provider
 
       - name: Deploy to server
         uses: appleboy/scp-action@v0.1.7

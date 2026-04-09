@@ -17,7 +17,7 @@ const GOOGLE_CONFIG = {
 
   CALENDAR_NAME: "Calendário Mágico ⭐",
   TIMEZONE:      "America/Sao_Paulo",
-  SCOPES:        "https://www.googleapis.com/auth/calendar",
+  SCOPES:        "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
   DISCOVERY_DOCS: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
 
   PIN:               process.env.REACT_APP_PIN,

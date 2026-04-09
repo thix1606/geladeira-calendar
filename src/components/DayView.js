@@ -4,6 +4,7 @@
 
 import React, { useMemo, useState } from "react";
 import ConfirmModal from "./ConfirmModal";
+import EditEventModal from "./EditEventModal";
 
 const WEEKDAY_PT = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 const MONTH_PT   = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -42,13 +43,13 @@ function colorEventTitle(colorName) { return `📌 Dia com ${colorName}`; }
 function isColorEvent(event) { return (event.summary || "").startsWith("📌 Dia com "); }
 
 const DayView = ({
-  date, events, onBack, onAddEvent, onDeleteEvent,
-  dayColor,         // { id, hex, name } | null
-  colorsConfig,     // lista de cores configuradas
-  onSetDayColor,    // (colorId | null) => void  — só salva no estado local
-  onCreateColorEvent,  // (date, colorName) => Promise<event>
-  onDeleteColorEvent,  // (eventId) => Promise<void>
-  colorEventId,     // id do evento de cor atual para este dia (ou null)
+  date, events, onBack, onAddEvent, onDeleteEvent, onUpdateEvent,
+  dayColor,
+  colorsConfig,
+  onSetDayColor,
+  onCreateColorEvent,
+  onDeleteColorEvent,
+  colorEventId,
 }) => {
   const dayEvents = useMemo(() => {
     if (!date) return [];
@@ -65,7 +66,8 @@ const DayView = ({
     return colorEv ? [colorEv, ...rest] : rest;
   }, [events, date]);
 
-  const [confirm, setConfirm] = useState(null); // { title, message, onConfirm }
+  const [confirm,   setConfirm]   = useState(null);
+  const [editingEv,  setEditingEv] = useState(null);
 
   if (!date) return null;
 
@@ -107,6 +109,16 @@ const DayView = ({
           message={confirm.message}
           onConfirm={confirm.onConfirm}
           onCancel={() => setConfirm(null)}
+        />
+      )}
+      {editingEv && (
+        <EditEventModal
+          event={editingEv}
+          onSave={async (id, data) => {
+            await onUpdateEvent?.(id, data);
+            setEditingEv(null);
+          }}
+          onClose={() => setEditingEv(null)}
         />
       )}
       {/* Header */}
@@ -192,7 +204,9 @@ const DayView = ({
               style={{
                 "--event-color": isColorEvent(ev) ? (dayColor?.hex ?? "#FF6B9D") : getEventColor(ev),
                 animationDelay: `${idx * 0.06}s`,
+                cursor: isColorEvent(ev) ? "default" : "pointer",
               }}
+              onClick={() => { if (!isColorEvent(ev)) setEditingEv(ev); }}
             >
               <div className="event-emoji-big">{getEventEmoji(ev)}</div>
               <div className="event-info">
@@ -205,7 +219,7 @@ const DayView = ({
               {!isColorEvent(ev) && (
                 <button
                   className="event-delete-btn touch-btn"
-                  onClick={() => handleDelete(ev)}
+                  onClick={(e) => { e.stopPropagation(); handleDelete(ev); }}
                   aria-label="Apagar evento"
                 >🗑️</button>
               )}

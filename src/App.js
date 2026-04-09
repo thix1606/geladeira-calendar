@@ -28,7 +28,7 @@ function App() {
 
   const {
     isSignedIn, isLoading, error, events, calendarId,
-    blockedEmail, signIn, signOut, addEvent, deleteEvent, fetchEvents,
+    blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, fetchEvents,
   } = useGoogleCalendar();
 
   const {
@@ -230,6 +230,7 @@ function App() {
           onBack={handleBackToMonth}
           onAddEvent={() => handleOpenAddModal(selectedDate)}
           onDeleteEvent={deleteEvent}
+          onUpdateEvent={updateEvent}
           dayColor={getDayColor(selectedDate)}
           colorsConfig={colorsConfig}
           onSetDayColor={(colorId) => setDayColor(selectedDate, colorId)}

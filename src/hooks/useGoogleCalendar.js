@@ -287,6 +287,46 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId]);
 
+  const updateEvent = useCallback(async (eventId, { title, emoji, startTime, endTime, color, notes }) => {
+    if (!calendarId) return null;
+    try {
+      const colorMap = { pink:"4", purple:"3", blue:"1", green:"2", yellow:"5", red:"11", orange:"6" };
+      // Busca o evento atual para preservar a data
+      const existing = events.find((e) => e.id === eventId);
+      if (!existing) return null;
+
+      const resource = {
+        summary:     `${emoji} ${title}`,
+        description: notes || "",
+        colorId:     colorMap[color] || "4",
+      };
+
+      if (startTime) {
+        // Extrai a data do evento original
+        const baseDate = existing.start?.date
+          ? existing.start.date
+          : new Date(existing.start.dateTime).toISOString().slice(0, 10);
+        const [sh, sm] = startTime.split(":").map(Number);
+        const [eh, em] = (endTime || startTime).split(":").map(Number);
+        resource.start = { dateTime: `${baseDate}T${String(sh).padStart(2,"0")}:${String(sm).padStart(2,"0")}:00`, timeZone: "America/Sao_Paulo" };
+        resource.end   = { dateTime: `${baseDate}T${String(eh).padStart(2,"0")}:${String(em).padStart(2,"0")}:00`, timeZone: "America/Sao_Paulo" };
+      } else {
+        const baseDate = existing.start?.date
+          ? existing.start.date
+          : new Date(existing.start.dateTime).toISOString().slice(0, 10);
+        resource.start = { date: baseDate };
+        resource.end   = { date: baseDate };
+      }
+
+      const res = await window.gapi.client.calendar.events.update({ calendarId, eventId, resource });
+      setEvents((prev) => prev.map((e) => e.id === eventId ? res.result : e));
+      return res.result;
+    } catch (err) {
+      console.error("Erro ao atualizar evento:", err);
+      return null;
+    }
+  }, [calendarId, events]);
+
   useEffect(() => {
     if (calendarId && isSignedIn) {
       const now = new Date();
@@ -294,7 +334,7 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId, isSignedIn, fetchEvents]);
 
-  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, signIn, signOut, addEvent, deleteEvent, fetchEvents };
+  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, fetchEvents };
 };
 
 export default useGoogleCalendar;

@@ -162,7 +162,7 @@ const useGoogleCalendar = () => {
   const signIn = useCallback(() => {
     const params = new URLSearchParams({
       client_id:     GOOGLE_CONFIG.CLIENT_ID,
-      redirect_uri:  window.location.origin,
+      redirect_uri:  window.location.origin + '/',
       response_type: 'token',
       scope:         GOOGLE_CONFIG.SCOPES,
       include_granted_scopes: 'true',

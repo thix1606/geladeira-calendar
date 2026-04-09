@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -34,13 +34,9 @@ jobs:
           TSC_COMPILE_ON_ERROR: true
           SKIP_PREFLIGHT_CHECK: true
 
-      - name: Deploy to server
-        uses: appleboy/scp-action@v0.1.7
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: deploy
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          source: "build/"
-          target: "/var/www/geladeira-calendar"
-          strip_components: 1
-          rm: true
+          name: build
+          path: build/
+          retention-days: 7

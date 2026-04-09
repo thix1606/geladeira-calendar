@@ -2,7 +2,8 @@
 // DAY VIEW — tela de detalhe do dia
 // ============================================================
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
+import ConfirmModal from "./ConfirmModal";
 
 const WEEKDAY_PT = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 const MONTH_PT   = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -64,6 +65,8 @@ const DayView = ({
     return colorEv ? [colorEv, ...rest] : rest;
   }, [events, date]);
 
+  const [confirm, setConfirm] = useState(null); // { title, message, onConfirm }
+
   if (!date) return null;
 
   const weekday   = WEEKDAY_PT[date.getDay()];
@@ -86,20 +89,26 @@ const DayView = ({
   }
 
   const handleDelete = (ev) => {
-    if (isColorEvent(ev)) {
-      if (window.confirm(`Apagar "${ev.summary}" e remover a cor do dia?`)) {
-        onSetDayColor(null);
-        onDeleteColorEvent(ev.id);
-      }
-      return;
-    }
-    if (window.confirm(`Apagar "${ev.summary}"?`)) {
-      onDeleteEvent(ev.id);
-    }
+    setConfirm({
+      title:   "Apagar compromisso?",
+      message: ev.summary?.replace(/^\p{Emoji}\s*/u, "") || "",
+      onConfirm: () => {
+        setConfirm(null);
+        onDeleteEvent(ev.id);
+      },
+    });
   };
 
   return (
     <div className="day-view">
+      {confirm && (
+        <ConfirmModal
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={confirm.onConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
       {/* Header */}
       <div
         className="day-header"

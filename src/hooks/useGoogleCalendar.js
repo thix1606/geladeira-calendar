@@ -33,8 +33,8 @@ function extractTokenFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash) return null;
   const params = Object.fromEntries(new URLSearchParams(hash));
+  console.log('[OAuth] params do hash:', JSON.stringify(params));
   if (params.access_token) {
-    // Limpa o hash da URL sem recarregar a página
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
     return params.access_token;
   }

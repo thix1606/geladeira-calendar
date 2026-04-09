@@ -19,8 +19,8 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          # Fix ajv conflict in fork-ts-checker-webpack-plugin
-          npm install --legacy-peer-deps ajv@^8 ajv-keywords@^5 --save-dev || true
+          # Remove fork-ts-checker que causa conflito de ajv (projeto é JS puro)
+          rm -rf node_modules/fork-ts-checker-webpack-plugin
 
       - name: Build
         run: npm run build

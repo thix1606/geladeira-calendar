@@ -63,20 +63,20 @@ function App() {
     setSelectedDate(null);
   }, []);
 
-  // Garante que o app nunca sai por back do browser
+  // Bloqueia o back do browser — substitui todo o histórico pelo estado do app
   useEffect(() => {
-    // Empurra duas entradas no histórico para absorver qualquer back anterior
+    // Usa replaceState para não acumular entradas, e pushState para ter algo a interceptar
+    window.history.replaceState({ app: true }, "");
     window.history.pushState({ app: true }, "");
-    window.history.pushState({ app: true }, "");
-  }, []); // só na montagem inicial
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
+      // Sempre re-empurra imediatamente para nunca ficar sem entrada
+      window.history.pushState({ app: true }, "");
       if (view === "day" || view === "settings") {
         handleBackToMonth();
       }
-      // Sempre re-empurra para manter o app no histórico
-      window.history.pushState({ app: true }, "");
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);

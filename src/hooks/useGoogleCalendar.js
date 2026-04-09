@@ -29,15 +29,27 @@ function loadScript(src) {
 }
 
 // Extrai token do hash da URL (retorno do redirect OAuth)
+const PENDING_TOKEN_KEY = 'gc_pending_token';
+
 function extractTokenFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash) return null;
   const params = Object.fromEntries(new URLSearchParams(hash));
   if (params.access_token) {
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    return params;
+    // Salva o token no sessionStorage antes de recarregar
+    sessionStorage.setItem(PENDING_TOKEN_KEY, JSON.stringify(params));
+    // location.replace limpa o hash E remove a entrada do Google do histórico
+    window.location.replace(window.location.origin + window.location.pathname);
+    return null; // retorna null pois vai recarregar
   }
   return null;
+}
+
+function consumePendingToken() {
+  const raw = sessionStorage.getItem(PENDING_TOKEN_KEY);
+  if (!raw) return null;
+  sessionStorage.removeItem(PENDING_TOKEN_KEY);
+  try { return JSON.parse(raw); } catch { return null; }
 }
 
 const TOKEN_STORAGE_KEY = 'gc_access_token';
@@ -159,7 +171,15 @@ const useGoogleCalendar = () => {
 
         if (cancelled) return;
 
-        // 1. Verifica token salvo no localStorage
+        // 1. Token pendente do sessionStorage (após location.replace pós-OAuth)
+        const pendingToken = consumePendingToken();
+        if (pendingToken?.access_token) {
+          await authenticateWithToken(pendingToken.access_token, pendingToken.expires_in);
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Token salvo no localStorage (sessão persistente)
         const savedToken = loadToken();
         if (savedToken) {
           await authenticateWithToken(savedToken, null);
@@ -167,12 +187,8 @@ const useGoogleCalendar = () => {
           return;
         }
 
-        // 2. Verifica se voltou de um redirect OAuth com token no hash
-        const hashParams = extractTokenFromHash();
-        if (hashParams?.access_token) {
-          await new Promise(r => setTimeout(r, 300));
-          await authenticateWithToken(hashParams.access_token, hashParams.expires_in);
-        }
+        // 3. Hash na URL (caso location.replace não tenha funcionado)
+        extractTokenFromHash(); // se tiver token, salva e recarrega
 
         setIsLoading(false);
 

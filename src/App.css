@@ -536,7 +536,7 @@ html, body {
 }
 
 .event-bar {
-  height: 14px;
+  height: 18px;
   border-radius: 3px;
   width: 100%;
   min-width: 0;
@@ -547,7 +547,7 @@ html, body {
 }
 
 .event-bar-emoji {
-  font-size: 0.6rem;
+  font-size: 0.9rem;
   line-height: 1;
   flex-shrink: 0;
 }

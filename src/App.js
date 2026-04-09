@@ -57,12 +57,31 @@ function App() {
     setSelectedDate(date);
     setView("day");
     fetchEvents(date.getFullYear(), date.getMonth() + 1);
+    // Empurra estado no histórico para o back do browser funcionar
+    window.history.pushState({ view: 'day' }, '');
   }, [fetchEvents]);
 
   const handleBackToMonth = useCallback(() => {
     setView("month");
     setSelectedDate(null);
   }, []);
+
+  // Intercepta o back do browser
+  useEffect(() => {
+    const onPopState = (e) => {
+      if (view === 'day') {
+        // Back no DayView → volta pro calendário
+        handleBackToMonth();
+      } else {
+        // Back no calendário → não faz nada, re-empurra o estado
+        window.history.pushState(null, '');
+      }
+    };
+    window.addEventListener('popstate', onPopState);
+    // Garante que sempre há um estado no histórico para interceptar
+    window.history.replaceState(null, '');
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [view, handleBackToMonth]);
 
   const handleOpenAddModal = useCallback((date) => {
     setAddForDate(date);

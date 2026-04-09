@@ -6,6 +6,7 @@
 // ============================================================
 
 import React, { useState } from "react";
+import BuildVersion from "./BuildVersion";
 
 function maskValue(val) {
   if (!val) return "(não definido)";
@@ -119,6 +120,7 @@ export default function ErrorScreen({ error, buildApiKey, buildClientId, onRetry
             </div>
           </div>
         )}
+        <BuildVersion dark style={{ marginTop: '1rem' }} />
       </div>
     </div>
   );

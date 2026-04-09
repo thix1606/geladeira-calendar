@@ -9,6 +9,7 @@ import PinScreen, { isPinSessionValid, clearPinSession } from "./components/PinS
 import BlockedScreen from "./components/BlockedScreen";
 import ErrorScreen from "./components/ErrorScreen";
 import ColorsConfigScreen from "./components/ColorsConfigScreen";
+import BuildVersion from "./components/BuildVersion";
 import { BUILD_API_KEY, BUILD_CLIENT_ID } from "./googleConfig";
 import "./App.css";
 
@@ -183,6 +184,7 @@ function App() {
         <div className="splash-title">Calendário Mágico</div>
         <div className="splash-dots"><span /><span /><span /></div>
       </div>
+      <BuildVersion style={{ position: 'absolute', bottom: '1rem', width: '100%' }} />
     </div>
   );
 

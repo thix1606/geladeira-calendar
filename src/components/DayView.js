@@ -5,6 +5,7 @@
 import React, { useMemo, useState } from "react";
 import ConfirmModal from "./ConfirmModal";
 import EditEventModal from "./EditEventModal";
+import BuildVersion from "./BuildVersion";
 
 const WEEKDAY_PT = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 const MONTH_PT   = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -228,6 +229,7 @@ const DayView = ({
           ))}
         </div>
       )}
+      <BuildVersion />
     </div>
   );
 };

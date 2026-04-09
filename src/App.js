@@ -70,24 +70,25 @@ function App() {
     setSelectedDate(null);
   }, []);
 
-  // Bloqueia o back do browser — substitui todo o histórico pelo estado do app
-  useEffect(() => {
-    // Usa replaceState para não acumular entradas, e pushState para ter algo a interceptar
-    window.history.replaceState({ app: true }, "");
-    window.history.pushState({ app: true }, "");
-  }, []);
+  // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener
+  // viewRef mantém o valor atual de view sem precisar recriar o handler a cada render
+  const viewRef = React.useRef(view);
+  useEffect(() => { viewRef.current = view; }, [view]);
 
   useEffect(() => {
+    window.history.replaceState({ app: true }, "");
+    window.history.pushState({ app: true }, "");
+
     const onPopState = () => {
-      // Sempre re-empurra imediatamente para nunca ficar sem entrada
       window.history.pushState({ app: true }, "");
-      if (view === "day" || view === "settings") {
+      if (viewRef.current === "day" || viewRef.current === "settings") {
         handleBackToMonth();
       }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [view, handleBackToMonth]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleOpenSettings = useCallback(() => {
     setView("settings");

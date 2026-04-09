@@ -28,6 +28,9 @@ function App() {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const [pinUnlocked, setPinUnlocked] = useState(() => isPinSessionValid());
+  const [navPosition, setNavPosition] = useState(
+    () => localStorage.getItem('gc_nav_position') || 'top'
+  );
 
   const {
     isSignedIn, isLoading, error, events, calendarId,
@@ -203,6 +206,11 @@ function App() {
     setTimeout(() => setTodayPulse(false), 1800);
   }, [fetchEvents]);
 
+  const handleNavPositionChange = useCallback((pos) => {
+    setNavPosition(pos);
+    localStorage.setItem('gc_nav_position', pos);
+  }, []);
+
   const handleSignOut = useCallback(async () => {
     clearPinSession();
     setPinUnlocked(false);
@@ -260,6 +268,8 @@ function App() {
         onBack={handleBackToMonth}
         onSignOut={handleSignOut}
         syncing={syncing}
+        navPosition={navPosition}
+        onNavPositionChange={handleNavPositionChange}
       />
     );
   }
@@ -374,6 +384,7 @@ function App() {
           dateKey={dateKey}
           colorsConfig={colorsConfig}
           todayPulse={todayPulse}
+          navPosition={navPosition}
         />
       ) : (
         <DayView
@@ -393,6 +404,7 @@ function App() {
           onCreateColorEvent={handleCreateColorEvent}
           onDeleteColorEvent={handleDeleteColorEvent}
           colorEventId={colorEventId}
+          navPosition={navPosition}
         />
       )}
 
@@ -404,7 +416,7 @@ function App() {
         />
       )}
 
-      {view === "month" && (
+      {view === "month" && navPosition === 'top' && (
         <>
           <button
             className="fab-add"
@@ -429,6 +441,17 @@ function App() {
             ⚙️
           </button>
         </>
+      )}
+      {view === "month" && navPosition === 'bottom' && (
+        <div className="bottom-nav-bar">
+          <button className="bnb-btn" onClick={handleOpenSettings} aria-label="Configurações">⚙️</button>
+          <button className="bnb-btn bnb-nav" onClick={() => handleMonthChange(-1)} aria-label="Mês anterior">‹</button>
+          <button className="bnb-btn bnb-today" onClick={handleGoToday} aria-label="Ir para hoje">Hoje</button>
+          <button className="bnb-btn bnb-nav" onClick={() => handleMonthChange(1)} aria-label="Próximo mês">›</button>
+          <button className="bnb-btn bnb-add" onClick={() => handleOpenAddModal(new Date())} aria-label="Adicionar compromisso">
+            <span>+</span> Novo
+          </button>
+        </div>
       )}
     </div>
   );

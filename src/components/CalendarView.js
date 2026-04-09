@@ -48,7 +48,7 @@ const DAY_COLOR_HEX = {
   red:     '#FF6B6B',
 };
 
-const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey, colorsConfig = [], onOpenSettings, todayPulse = false }) => {
+const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey, colorsConfig = [], onOpenSettings, todayPulse = false, navPosition = 'top' }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -93,19 +93,23 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
   return (
     <div className="calendar-view">
       {/* Header */}
-      <div className="cal-header">
-        <button className="nav-btn touch-btn" onClick={() => onMonthChange(-1)} aria-label="Mês anterior">
-          ‹
-        </button>
+      <div className="cal-header" style={navPosition === 'bottom' ? { justifyContent: 'center' } : {}}>
+        {navPosition !== 'bottom' && (
+          <button className="nav-btn touch-btn" onClick={() => onMonthChange(-1)} aria-label="Mês anterior">
+            ‹
+          </button>
+        )}
 
         <div className="cal-month-row">
           <span className="cal-month-name">{MONTH_NAMES_PT[month]}</span>
           <span className="cal-year">{year}</span>
         </div>
 
-        <button className="nav-btn touch-btn" onClick={() => onMonthChange(1)} aria-label="Próximo mês">
-          ›
-        </button>
+        {navPosition !== 'bottom' && (
+          <button className="nav-btn touch-btn" onClick={() => onMonthChange(1)} aria-label="Próximo mês">
+            ›
+          </button>
+        )}
       </div>
 
 

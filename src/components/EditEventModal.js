@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 
 const MONTH_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const WEEKDAYS_SHORT = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
 
 const EMOJIS = [
   "🎂","🎉","🏫","🏊","🎨","⚽","🎵","🐶","🌸","🍕",
@@ -33,7 +34,123 @@ function extractTime(dateTime) {
   const d = new Date(dateTime);
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
+function toDateStr(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+}
 
+// ── Mini calendário ─────────────────────────────────────────
+function MiniCalendar({ mode, selectedDays, onToggleDay, calDate, onCalDateChange }) {
+  const year  = calDate.getFullYear();
+  const month = calDate.getMonth();
+
+  const cells = useMemo(() => {
+    const rawFirst = new Date(year, month, 1).getDay();
+    const firstDay = (rawFirst + 6) % 7; // Seg=0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const result = [];
+    for (let i = 0; i < firstDay; i++) result.push({ type: "empty", key: `e${i}` });
+    for (let d = 1; d <= daysInMonth; d++) result.push({ type: "day", day: d, key: `d${d}` });
+    return result;
+  }, [year, month]);
+
+  const todayStr = toDateStr(
+    new Date().getFullYear(), new Date().getMonth(), new Date().getDate()
+  );
+
+  return (
+    <div style={mcStyles.wrap}>
+      {/* Navegação do mês */}
+      <div style={mcStyles.header}>
+        <button style={mcStyles.navBtn} onClick={() => onCalDateChange(-1)}>‹</button>
+        <span style={mcStyles.monthLabel}>{MONTH_PT[month]} {year}</span>
+        <button style={mcStyles.navBtn} onClick={() => onCalDateChange(1)}>›</button>
+      </div>
+
+      {/* Cabeçalho dos dias da semana */}
+      <div style={mcStyles.grid}>
+        {WEEKDAYS_SHORT.map((wd) => (
+          <span key={wd} style={mcStyles.wdLabel}>{wd}</span>
+        ))}
+      </div>
+
+      {/* Células dos dias */}
+      <div style={mcStyles.grid}>
+        {cells.map((cell) => {
+          if (cell.type === "empty") return <span key={cell.key} />;
+          const ds = toDateStr(year, month, cell.day);
+          const selected = selectedDays.has(ds);
+          const isToday  = ds === todayStr;
+          return (
+            <button
+              key={cell.key}
+              onClick={() => onToggleDay(ds)}
+              style={{
+                ...mcStyles.dayBtn,
+                background: selected
+                  ? "linear-gradient(135deg,#C77DFF,#7B2FBE)"
+                  : isToday ? "#FFF0F6" : "transparent",
+                color: selected ? "#fff" : isToday ? "#FF6B9D" : "#3A1A3E",
+                fontWeight: selected || isToday ? 800 : 500,
+                border: isToday && !selected ? "2px solid #FF6B9D" : "2px solid transparent",
+              }}
+            >
+              {cell.day}
+            </button>
+          );
+        })}
+      </div>
+
+      {mode === "copy" && selectedDays.size > 0 && (
+        <p style={mcStyles.hint}>
+          {selectedDays.size} dia{selectedDays.size > 1 ? "s" : ""} selecionado{selectedDays.size > 1 ? "s" : ""}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const mcStyles = {
+  wrap: {
+    background: "#f8f0ff", borderRadius: "0.75rem",
+    padding: "0.6rem 0.5rem 0.75rem",
+  },
+  header: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    marginBottom: "0.4rem",
+  },
+  navBtn: {
+    background: "none", border: "none", cursor: "pointer",
+    fontSize: "1.4rem", color: "#7B2FBE", lineHeight: 1,
+    width: 36, height: 36, display: "flex", alignItems: "center", justifyContent: "center",
+    borderRadius: "50%",
+  },
+  monthLabel: {
+    fontSize: "0.9rem", fontWeight: 800, color: "#7B2FBE",
+  },
+  grid: {
+    display: "grid", gridTemplateColumns: "repeat(7, 1fr)",
+    gap: "2px", textAlign: "center",
+  },
+  wdLabel: {
+    fontSize: "0.6rem", fontWeight: 700, color: "#aaa",
+    padding: "2px 0", textAlign: "center",
+  },
+  dayBtn: {
+    border: "none", borderRadius: "50%", cursor: "pointer",
+    fontSize: "0.8rem", aspectRatio: "1",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    width: "100%", padding: 0,
+    fontFamily: "var(--font-body)",
+    transition: "background 0.12s",
+    minHeight: 36,
+  },
+  hint: {
+    fontSize: "0.72rem", color: "#7B2FBE", fontWeight: 700,
+    margin: "0.4rem 0 0", textAlign: "center",
+  },
+};
+
+// ── Modal principal ─────────────────────────────────────────
 const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
   const [title,         setTitle]         = useState(extractTitle(event.summary));
   const [selectedEmoji, setSelectedEmoji] = useState(extractEmoji(event.summary));
@@ -45,9 +162,15 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
 
   // Painel de mover/copiar
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [targetDate,     setTargetDate]     = useState(""); // "YYYY-MM-DD"
   const [moveMode,       setMoveMode]       = useState("move"); // "move" | "copy"
-  const [moveSaving,     setMoveSaving]     = useState(false);
+  const [selectedDays,   setSelectedDays]   = useState(new Set());
+  const [calDate,        setCalDate]        = useState(() => {
+    // Inicia no mês do evento
+    if (event.start?.date) return new Date(event.start.date + "T00:00:00");
+    if (event.start?.dateTime) return new Date(event.start.dateTime);
+    return new Date();
+  });
+  const [moveSaving, setMoveSaving] = useState(false);
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -63,11 +186,45 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
     setSaving(false);
   };
 
+  const handleSetMoveMode = (m) => {
+    setMoveMode(m);
+    setSelectedDays(new Set()); // limpa seleção ao trocar modo
+  };
+
+  const handleToggleDay = (dateStr) => {
+    setSelectedDays((prev) => {
+      const next = new Set(prev);
+      if (moveMode === "move") {
+        // seleção única
+        if (next.has(dateStr)) next.clear();
+        else { next.clear(); next.add(dateStr); }
+      } else {
+        // multi-seleção
+        if (next.has(dateStr)) next.delete(dateStr);
+        else next.add(dateStr);
+      }
+      return next;
+    });
+  };
+
+  const handleCalDateChange = (dir) => {
+    setCalDate((prev) => {
+      const d = new Date(prev);
+      d.setMonth(d.getMonth() + dir);
+      return d;
+    });
+  };
+
   const handleMoveOrCopy = async () => {
-    if (!targetDate) return;
+    if (selectedDays.size === 0) return;
     setMoveSaving(true);
-    const [y, m, d] = targetDate.split("-").map(Number);
-    await onMoveOrCopy?.(event.id, new Date(y, m - 1, d), moveMode);
+    const dates = [...selectedDays].map((ds) => {
+      const [y, m, d] = ds.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    });
+    for (const date of dates) {
+      await onMoveOrCopy?.(event.id, date, moveMode);
+    }
     setMoveSaving(false);
     onClose();
   };
@@ -167,25 +324,18 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
             onClick={() => setShowDatePicker(true)}
             style={{ color: "var(--purple-d)", marginTop: 0 }}
           >
-            📆 Mudar para outro dia
+            📆 Copiar ou mudar para outro dia
           </button>
         ) : (
           <div style={styles.datePicker}>
-            <p style={styles.datePickerTitle}>📆 Mudar para outro dia</p>
-
-            <input
-              type="date"
-              value={targetDate}
-              onChange={(e) => setTargetDate(e.target.value)}
-              style={styles.dateInput}
-            />
+            <p style={styles.datePickerTitle}>📆 Copiar ou mudar para outro dia</p>
 
             {/* Mover ou copiar */}
             <div style={styles.modeRow}>
               {["move", "copy"].map((m) => (
                 <button
                   key={m}
-                  onClick={() => setMoveMode(m)}
+                  onClick={() => handleSetMoveMode(m)}
                   style={{
                     ...styles.modeBtn,
                     background: moveMode === m ? "var(--purple-d)" : "#f0e8ff",
@@ -197,19 +347,37 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
               ))}
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            <p style={styles.modeHint}>
+              {moveMode === "move"
+                ? "Selecione o dia para onde mover o evento."
+                : "Selecione um ou mais dias para copiar o evento."}
+            </p>
+
+            <MiniCalendar
+              mode={moveMode}
+              selectedDays={selectedDays}
+              onToggleDay={handleToggleDay}
+              calDate={calDate}
+              onCalDateChange={handleCalDateChange}
+            />
+
+            <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
               <button
                 className="save-btn"
                 style={{ flex: 1, margin: 0 }}
                 onClick={handleMoveOrCopy}
-                disabled={!targetDate || moveSaving}
+                disabled={selectedDays.size === 0 || moveSaving}
               >
-                {moveSaving ? "Aguarde... ⏳" : moveMode === "move" ? "Mover" : "Copiar"}
+                {moveSaving
+                  ? "Aguarde... ⏳"
+                  : moveMode === "move"
+                    ? "Mover"
+                    : `Copiar para ${selectedDays.size} dia${selectedDays.size !== 1 ? "s" : ""}`}
               </button>
               <button
                 className="cancel-btn"
                 style={{ flex: 1, margin: 0 }}
-                onClick={() => setShowDatePicker(false)}
+                onClick={() => { setShowDatePicker(false); setSelectedDays(new Set()); }}
               >
                 Voltar
               </button>
@@ -237,19 +405,12 @@ const styles = {
   datePicker: {
     background: "#f8f0ff", borderRadius: "1rem",
     padding: "1rem", display: "flex",
-    flexDirection: "column", gap: "0.75rem",
+    flexDirection: "column", gap: "0.6rem",
     marginBottom: "0.5rem",
   },
   datePickerTitle: {
     fontSize: "0.9rem", fontWeight: 800,
     color: "var(--purple-d)", margin: 0,
-  },
-  dateInput: {
-    width: "100%", boxSizing: "border-box",
-    border: "2px solid #e0c8ff", borderRadius: "0.75rem",
-    padding: "0.6rem 0.9rem", fontSize: "1rem",
-    fontFamily: "var(--font-body)", outline: "none",
-    color: "var(--text)",
   },
   modeRow: { display: "flex", gap: 8 },
   modeBtn: {
@@ -257,6 +418,9 @@ const styles = {
     padding: "0.65rem", fontSize: "0.95rem", fontWeight: 700,
     cursor: "pointer", fontFamily: "var(--font-body)",
     transition: "background 0.15s",
+  },
+  modeHint: {
+    fontSize: "0.78rem", color: "#888", margin: 0,
   },
 };
 

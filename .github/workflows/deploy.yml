@@ -22,11 +22,14 @@ jobs:
           # Patch: substitui ForkTsChecker por stubs para evitar conflito de ajv
           printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWebpackPlugin.js
           printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWarningWebpackPlugin.js
-          # Patch todos os _formatLimit.js dentro do fork-ts-checker (incluindo em react-scripts)
-          find node_modules -path '*/ajv-keywords/keywords/_formatLimit.js' | while read f; do
-            printf 'module.exports = function() {};\n' > "$f"
+          # Patch: substitui ajv-keywords/index.js por stub nos contextos do fork-ts-checker
+          find node_modules -path '*/fork-ts-checker-webpack-plugin/node_modules/ajv-keywords/index.js' | while read f; do
+            printf 'module.exports = function(ajv) { return ajv; };\n' > "$f"
           done
-          echo "Patched formatLimit files: $(find node_modules -path '*/ajv-keywords/keywords/_formatLimit.js' | wc -l)"
+          # Mesmo patch para react-scripts que embute fork-ts-checker
+          find node_modules/react-scripts -path '*/ajv-keywords/index.js' | while read f; do
+            printf 'module.exports = function(ajv) { return ajv; };\n' > "$f"
+          done
 
       - name: Build
         run: npm run build

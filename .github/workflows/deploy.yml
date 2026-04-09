@@ -17,19 +17,12 @@ jobs:
           node-version: '18'
 
       - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Patch ajv-keywords _formatLimit (ajv@8 compat)
         run: |
-          npm install --legacy-peer-deps
-          # Patch: substitui ForkTsChecker por stubs para evitar conflito de ajv
-          printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWebpackPlugin.js
-          printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWarningWebpackPlugin.js
-          # Patch: substitui ajv-keywords/index.js por stub nos contextos do fork-ts-checker
-          find node_modules -path '*/fork-ts-checker-webpack-plugin/node_modules/ajv-keywords/index.js' | while read f; do
-            printf 'module.exports = function(ajv) { return ajv; };\n' > "$f"
-          done
-          # Mesmo patch para react-scripts que embute fork-ts-checker
-          find node_modules/react-scripts -path '*/ajv-keywords/index.js' | while read f; do
-            printf 'module.exports = function(ajv) { return ajv; };\n' > "$f"
-          done
+          find node_modules -name "_formatLimit.js" -path "*/ajv-keywords/*" | \
+            xargs sed -i 's/var formats = ajv\._formats;/var formats = ajv._formats || {};/g'
 
       - name: Build
         run: npm run build
@@ -39,11 +32,7 @@ jobs:
           CI: false
           NODE_OPTIONS: --openssl-legacy-provider
           DISABLE_ESLINT_PLUGIN: true
-          TSC_COMPILE_ON_ERROR: true
           SKIP_PREFLIGHT_CHECK: true
-
-      - name: List build output
-        run: ls -la && ls -la build/ || echo 'No build dir'
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4

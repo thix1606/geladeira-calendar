@@ -35,7 +35,17 @@ function getEventDate(event) {
   return null;
 }
 
-const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut }) => {
+const DAY_COLOR_HEX = {
+  pink:    '#FF6B9D',
+  purple:  '#C77DFF',
+  blue:    '#74C0FC',
+  green:   '#69DB7C',
+  yellow:  '#FFD43B',
+  orange:  '#FFA94D',
+  red:     '#FF6B6B',
+};
+
+const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOut, dayColors = {}, dateKey }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
@@ -142,6 +152,11 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
                 .join(" ")}
               onClick={() => onDayPress(new Date(year, month, day))}
               aria-label={`Dia ${day}${hasEvents ? `, ${dayEvents.length} evento(s)` : ""}`}
+              style={(() => {
+                const key = dateKey?.(new Date(year, month, day));
+                const color = key && dayColors[key] ? DAY_COLOR_HEX[dayColors[key]] : null;
+                return color ? { background: color + '33', borderColor: color + '99' } : {};
+              })()}
             >
               <span className="day-num">{day}</span>
               {hasEvents && (

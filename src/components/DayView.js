@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { DAY_COLOR_OPTIONS } from "../hooks/useDayColors";
 
 const WEEKDAY_PT = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
 const MONTH_PT   = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -44,7 +45,7 @@ function getEventDate(event) {
   return null;
 }
 
-const DayView = ({ date, events, onBack, onAddEvent, onDeleteEvent }) => {
+const DayView = ({ date, events, onBack, onAddEvent, onDeleteEvent, dayColor, onSetDayColor }) => {
   const dayEvents = useMemo(() => {
     if (!date) return [];
     return events.filter((ev) => {
@@ -69,10 +70,12 @@ const DayView = ({ date, events, onBack, onAddEvent, onDeleteEvent }) => {
     }
   };
 
+  const headerBg = dayColor?.hex ?? null;
+
   return (
     <div className="day-view">
       {/* Header colorido */}
-      <div className="day-header">
+      <div className="day-header" style={headerBg ? { background: `linear-gradient(135deg, ${headerBg}cc, ${headerBg}88)` } : {}}>
         <button className="back-btn touch-btn" onClick={onBack} aria-label="Voltar">
           ‹
         </button>
@@ -84,6 +87,31 @@ const DayView = ({ date, events, onBack, onAddEvent, onDeleteEvent }) => {
           <span>＋</span>
           Novo
         </button>
+      </div>
+
+      {/* Seletor de cor do dia */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '8px',
+        padding: '10px 16px 4px', flexWrap: 'wrap',
+      }}>
+        <span style={{ fontSize: '0.75rem', color: 'var(--text-soft)', fontWeight: 700, marginRight: 2 }}>Cor do dia:</span>
+        {DAY_COLOR_OPTIONS.map((opt) => (
+          <button
+            key={opt.value ?? 'none'}
+            onClick={() => onSetDayColor?.(opt.value)}
+            title={opt.label}
+            style={{
+              width: 28, height: 28, borderRadius: '50%',
+              background: opt.hex ?? '#e0e0e0',
+              border: (dayColor?.value ?? null) === opt.value ? '3px solid #3A1A3E' : '2px solid transparent',
+              cursor: 'pointer', flexShrink: 0,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: opt.hex ? '0' : '0.7rem', color: '#888',
+            }}
+          >
+            {!opt.hex && '✕'}
+          </button>
+        ))}
       </div>
 
       {/* Lista de eventos */}

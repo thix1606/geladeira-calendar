@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import useGoogleCalendar from "./hooks/useGoogleCalendar";
+import { useDayColors } from "./hooks/useDayColors";
 import CalendarView from "./components/CalendarView";
 import DayView from "./components/DayView";
 import AddEventModal from "./components/AddEventModal";
@@ -35,6 +36,8 @@ function App() {
     deleteEvent,
     fetchEvents,
   } = useGoogleCalendar();
+
+  const { getColor, setColor, getRawColors, dateKey } = useDayColors();
 
   // Emojis flutuantes decorativos
   useEffect(() => {
@@ -157,6 +160,8 @@ function App() {
           onDayPress={handleDayPress}
           onMonthChange={handleMonthChange}
           onSignOut={handleSignOut}
+          dayColors={getRawColors()}
+          dateKey={dateKey}
         />
       ) : (
         <DayView
@@ -165,6 +170,8 @@ function App() {
           onBack={handleBackToMonth}
           onAddEvent={() => handleOpenAddModal(selectedDate)}
           onDeleteEvent={deleteEvent}
+          dayColor={getColor(selectedDate)}
+          onSetDayColor={(val) => setColor(selectedDate, val)}
         />
       )}
 

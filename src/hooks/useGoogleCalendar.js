@@ -33,12 +33,31 @@ function extractTokenFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash) return null;
   const params = Object.fromEntries(new URLSearchParams(hash));
-  console.log('[OAuth] params do hash:', JSON.stringify(params));
   if (params.access_token) {
     window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    return params.access_token;
+    return params;
   }
   return null;
+}
+
+const TOKEN_STORAGE_KEY = 'gc_access_token';
+const TOKEN_EXPIRY_KEY  = 'gc_token_expiry';
+
+function saveToken(token, expiresInSec) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresInSec * 1000 - 60000)); // -1min de margem
+}
+
+function loadToken() {
+  const token  = localStorage.getItem(TOKEN_STORAGE_KEY);
+  const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
+  if (token && Date.now() < expiry) return token;
+  return null;
+}
+
+function clearToken() {
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(TOKEN_EXPIRY_KEY);
 }
 
 // ── Hook ───────────────────────────────────────────────────
@@ -78,7 +97,7 @@ const useGoogleCalendar = () => {
 
   // ── Autenticação com token ────────────────────────────
 
-  const authenticateWithToken = useCallback(async (accessToken) => {
+  const authenticateWithToken = useCallback(async (accessToken, expiresIn) => {
     try {
       window.gapi.client.setToken({ access_token: accessToken });
 
@@ -92,15 +111,20 @@ const useGoogleCalendar = () => {
         setBlockedEmail(email);
         window.google?.accounts?.oauth2?.revoke(accessToken);
         window.gapi.client.setToken(null);
+        clearToken();
         setIsSignedIn(false);
         return;
       }
+
+      // Persiste o token no localStorage
+      if (expiresIn) saveToken(accessToken, Number(expiresIn));
 
       setBlockedEmail(null);
       setIsSignedIn(true);
       await ensureCalendarExists();
     } catch (err) {
       console.error("Erro ao autenticar com token:", err);
+      clearToken();
       setError("Erro ao verificar conta Google.");
     }
   }, [ensureCalendarExists]);
@@ -135,13 +159,19 @@ const useGoogleCalendar = () => {
 
         if (cancelled) return;
 
-        // Verifica se voltou de um redirect OAuth com token no hash
-        const tokenFromHash = extractTokenFromHash();
-        console.log('[OAuth] hash bruto:', window.location.hash);
-        console.log('[OAuth] token extraído:', tokenFromHash ? tokenFromHash.slice(0, 20) + '...' : 'NENHUM');
-        if (tokenFromHash) {
-          await new Promise(r => setTimeout(r, 500));
-          await authenticateWithToken(tokenFromHash);
+        // 1. Verifica token salvo no localStorage
+        const savedToken = loadToken();
+        if (savedToken) {
+          await authenticateWithToken(savedToken, null);
+          setIsLoading(false);
+          return;
+        }
+
+        // 2. Verifica se voltou de um redirect OAuth com token no hash
+        const hashParams = extractTokenFromHash();
+        if (hashParams?.access_token) {
+          await new Promise(r => setTimeout(r, 300));
+          await authenticateWithToken(hashParams.access_token, hashParams.expires_in);
         }
 
         setIsLoading(false);
@@ -180,6 +210,7 @@ const useGoogleCalendar = () => {
       window.google?.accounts?.oauth2?.revoke(token.access_token);
       window.gapi.client.setToken(null);
     }
+    clearToken();
     setIsSignedIn(false);
     setCalendarId(null);
     setEvents([]);

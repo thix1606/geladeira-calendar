@@ -32,6 +32,10 @@ function getEventEmoji(event) {
   return match ? match[1] : "📅";
 }
 
+function getEventTitle(event) {
+  return (event.summary || "").replace(/^\p{Emoji}\s*/u, "").trim();
+}
+
 function getEventDate(event) {
   if (event.start?.date) return new Date(event.start.date + "T00:00:00");
   if (event.start?.dateTime) return new Date(event.start.dateTime);
@@ -194,6 +198,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
                         style={{ background: getEventColor(ev) }}
                       >
                         {emoji && <span className="event-bar-emoji">{emoji}</span>}
+                        <span className="event-bar-title">{getEventTitle(ev)}</span>
                       </span>
                     );
                   })}

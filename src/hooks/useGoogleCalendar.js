@@ -45,6 +45,7 @@ function extractTokenFromHash() {
   // Erro no silent refresh (ex: login_required, consent_required)
   if (params.error) {
     sessionStorage.removeItem('gc_silent_refresh');
+    clearToken(); // evita loop: sem isso init() voltaria a tentar o silent refresh
     // Limpa o hash sem recarregar — usuário verá a tela de login
     window.history.replaceState(null, '', window.location.pathname);
   }

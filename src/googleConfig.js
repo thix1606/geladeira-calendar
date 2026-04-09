@@ -6,9 +6,14 @@
 // Copie .env.example para .env e preencha com suas credenciais.
 // =============================================================
 
+// Credenciais do build (injetadas pelo CI)
+export const BUILD_API_KEY   = process.env.REACT_APP_GOOGLE_API_KEY   || process.env.REACT_APP_API_KEY   || null;
+export const BUILD_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.REACT_APP_CLIENT_ID || null;
+
+// Override manual salvo pelo usuário via ErrorScreen tem prioridade
 const GOOGLE_CONFIG = {
-  API_KEY:   process.env.REACT_APP_GOOGLE_API_KEY   || process.env.REACT_APP_API_KEY,
-  CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.REACT_APP_CLIENT_ID,
+  API_KEY:   (typeof localStorage !== 'undefined' && localStorage.getItem('gc_override_api_key'))   || BUILD_API_KEY,
+  CLIENT_ID: (typeof localStorage !== 'undefined' && localStorage.getItem('gc_override_client_id')) || BUILD_CLIENT_ID,
 
   CALENDAR_NAME: "Calendário Mágico ⭐",
   TIMEZONE:      "America/Sao_Paulo",

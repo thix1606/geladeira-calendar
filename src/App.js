@@ -6,6 +6,8 @@ import AddEventModal from "./components/AddEventModal";
 import LoginScreen from "./components/LoginScreen";
 import PinScreen, { isPinSessionValid, clearPinSession } from "./components/PinScreen";
 import BlockedScreen from "./components/BlockedScreen";
+import ErrorScreen from "./components/ErrorScreen";
+import { BUILD_API_KEY, BUILD_CLIENT_ID } from "./googleConfig";
 import "./App.css";
 
 function App() {
@@ -104,14 +106,12 @@ function App() {
   // 2. Erro de configuração
   if (error) {
     return (
-      <div className="splash-screen error-screen">
-        <div className="splash-content">
-          <div className="splash-emoji">⚙️</div>
-          <div className="splash-title">Ops!</div>
-          <p className="error-msg">{error}</p>
-          <p className="error-hint">Verifique o arquivo <strong>src/googleConfig.js</strong></p>
-        </div>
-      </div>
+      <ErrorScreen
+        error={error}
+        buildApiKey={BUILD_API_KEY}
+        buildClientId={BUILD_CLIENT_ID}
+        onRetry={() => window.location.reload()}
+      />
     );
   }
 

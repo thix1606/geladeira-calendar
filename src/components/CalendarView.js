@@ -88,6 +88,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
 
   const isSunday = (day) => new Date(year, month, day).getDay() === 0;
   const isSaturday = (day) => new Date(year, month, day).getDay() === 6;
+  const isPast = (day) => new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   return (
     <div className="calendar-view">
@@ -140,6 +141,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
               className={[
                 "day-cell",
                 isToday(day) ? "today" : "",
+                isPast(day) ? "past" : "",
                 isSunday(day) ? "sunday" : "",
                 isSaturday(day) ? "saturday" : "",
                 hasEvents ? "has-events" : "",

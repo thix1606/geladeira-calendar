@@ -477,6 +477,24 @@ html, body {
 .day-cell.today .day-num { color: white !important; }
 .day-cell.other-month { opacity: 0.35; }
 
+.day-cell.past {
+  background: #f0f0f4;
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+.day-cell.past.has-events {
+  background: #e8e8f0;
+}
+
+.day-cell.past .day-num {
+  color: #aaa;
+}
+
+.day-cell.past .event-bar {
+  opacity: 0.5;
+}
+
 .day-num {
   font-family: var(--font-display);
   font-size: 1.1rem;

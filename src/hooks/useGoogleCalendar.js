@@ -168,7 +168,8 @@ const useGoogleCalendar = () => {
       redirect_uri:  window.location.origin + '/',
       response_type: 'token',
       scope:         GOOGLE_CONFIG.SCOPES,
-      include_granted_scopes: 'true',
+      prompt:        'consent',
+      include_granted_scopes: 'false',
     });
     window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }, []);

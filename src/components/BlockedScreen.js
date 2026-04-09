@@ -1,4 +1,5 @@
 import React from "react";
+import BuildVersion from "./BuildVersion";
 
 const BlockedScreen = ({ email, onSignOut }) => {
   return (
@@ -14,6 +15,7 @@ const BlockedScreen = ({ email, onSignOut }) => {
       <button className="login-btn" style={{ marginTop: 8 }} onClick={onSignOut}>
         <span>↩️</span> Trocar de conta
       </button>
+      <BuildVersion style={{ marginTop: '1.5rem' }} />
     </div>
   );
 };

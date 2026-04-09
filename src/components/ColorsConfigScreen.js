@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import ConfirmModal from "./ConfirmModal";
 import { COLOR_PALETTE } from "../hooks/useDayColors";
+import BuildVersion from "./BuildVersion";
 
 export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, onSignOut, syncing }) {
   const [editing,     setEditing]     = useState(null);
@@ -138,7 +139,7 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
       {/* Rodapé fixo com logout */}
       <div style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
-        padding: '1rem 1.5rem',
+        padding: '0.75rem 1.5rem 1rem',
         background: 'linear-gradient(to top, #fff 80%, transparent)',
         maxWidth: 500, margin: '0 auto',
       }}>
@@ -148,6 +149,7 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
         >
           Sair da conta Google
         </button>
+        <BuildVersion dark />
       </div>
     </div>
   );

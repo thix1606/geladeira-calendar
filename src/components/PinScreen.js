@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import BuildVersion from "./BuildVersion";
 import GOOGLE_CONFIG from "../googleConfig";
 
 // Chave usada no localStorage para guardar a sessão do PIN
@@ -97,6 +98,7 @@ const PinScreen = ({ onUnlock }) => {
           );
         })}
       </div>
+      <BuildVersion />
     </div>
   );
 };

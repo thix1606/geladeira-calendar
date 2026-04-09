@@ -19,10 +19,9 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          # Patch: substitui ajv/ajv-keywords dentro do fork-ts-checker pelo ajv@6 correto
-          rm -rf node_modules/fork-ts-checker-webpack-plugin/node_modules/ajv
-          rm -rf node_modules/fork-ts-checker-webpack-plugin/node_modules/ajv-keywords
-          rm -rf node_modules/fork-ts-checker-webpack-plugin/node_modules/schema-utils
+          # Patch: neutraliza ForkTsChecker no react-dev-utils (projeto é JS puro)
+          echo 'module.exports = function() {};' > node_modules/react-dev-utils/ForkTsCheckerWebpackPlugin.js
+          echo 'module.exports = function() {};' > node_modules/react-dev-utils/ForkTsCheckerWarningWebpackPlugin.js
 
       - name: Build
         run: npm run build

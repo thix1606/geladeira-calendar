@@ -34,7 +34,7 @@ function App() {
 
   const {
     colorsConfig, saveColor, removeColor,
-    getDayColor, setDayColor, getRawDayColors, syncing,
+    getDayColor, setDayColor, getRawDayColors, hydrateDayColorsFromEvents, syncing,
   } = useDayColors(calendarId);
 
   // Emojis flutuantes
@@ -49,6 +49,12 @@ function App() {
       size: `${1.2 + Math.random() * 1.2}rem`,
     })));
   }, []);
+
+  // Quando eventos chegam do servidor, reconstrói dayColors para datas ainda
+  // sem cor no localStorage (ex: primeiro acesso em navegador novo).
+  useEffect(() => {
+    hydrateDayColorsFromEvents(events);
+  }, [events, hydrateDayColorsFromEvents]);
 
   // ── Navegação ─────────────────────────────────────────────
 

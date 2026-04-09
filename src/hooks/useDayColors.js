@@ -111,6 +111,37 @@ export function useDayColors(calendarId) {
 
   const getRawDayColors = useCallback(() => dayColors, [dayColors]);
 
+  // Hidrata dayColors a partir de eventos do Google Calendar.
+  // Usado na abertura em navegador novo, onde o localStorage está vazio.
+  // Só preenche datas que ainda não têm cor — nunca sobrescreve escolha local.
+  const hydrateDayColorsFromEvents = useCallback((eventsArray) => {
+    if (!eventsArray || eventsArray.length === 0) return;
+    if (!colorsConfig || colorsConfig.length === 0) return;
+
+    const fresh = loadDayColors(); // lê direto do localStorage para evitar closure stale
+    let changed = false;
+
+    for (const ev of eventsArray) {
+      const summary = ev.summary || "";
+      if (!summary.startsWith("📌 Dia com ")) continue;
+      const colorName = summary.slice("📌 Dia com ".length);
+      const color = colorsConfig.find((c) => c.name === colorName);
+      if (!color) continue;
+      const dateStr = ev.start?.date
+        ?? (ev.start?.dateTime ? ev.start.dateTime.slice(0, 10) : null);
+      if (!dateStr) continue;
+      if (!fresh[dateStr]) {
+        fresh[dateStr] = color.id;
+        changed = true;
+      }
+    }
+
+    if (changed) {
+      saveDayColors(fresh);
+      setDayColors(fresh);
+    }
+  }, [colorsConfig]);
+
   return {
     colorsConfig,
     saveColor,
@@ -118,6 +149,7 @@ export function useDayColors(calendarId) {
     getDayColor,
     setDayColor,
     getRawDayColors,
+    hydrateDayColorsFromEvents,
     syncing,
   };
 }

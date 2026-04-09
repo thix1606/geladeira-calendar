@@ -83,8 +83,9 @@ const useGoogleCalendar = () => {
           }
         });
       } catch (err) {
+        const detail = err?.details ?? err?.error ?? err?.message ?? JSON.stringify(err);
         console.error("Erro ao inicializar Google API:", err);
-        setError("Erro de configuração. Verifique o googleConfig.js");
+        setError(`Erro de configuração: ${detail}`);
       } finally {
         setIsLoading(false);
       }

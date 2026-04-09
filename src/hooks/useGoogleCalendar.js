@@ -35,13 +35,20 @@ function extractTokenFromHash() {
   const hash = window.location.hash.slice(1);
   if (!hash) return null;
   const params = Object.fromEntries(new URLSearchParams(hash));
+
   if (params.access_token) {
-    // Salva o token no sessionStorage antes de recarregar
     sessionStorage.setItem(PENDING_TOKEN_KEY, JSON.stringify(params));
-    // location.replace limpa o hash E remove a entrada do Google do histórico
     window.location.replace(window.location.origin + window.location.pathname);
-    return null; // retorna null pois vai recarregar
+    return null;
   }
+
+  // Erro no silent refresh (ex: login_required, consent_required)
+  if (params.error) {
+    sessionStorage.removeItem('gc_silent_refresh');
+    // Limpa o hash sem recarregar — usuário verá a tela de login
+    window.history.replaceState(null, '', window.location.pathname);
+  }
+
   return null;
 }
 
@@ -57,14 +64,20 @@ const TOKEN_EXPIRY_KEY  = 'gc_token_expiry';
 
 function saveToken(token, expiresInSec) {
   localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + expiresInSec * 1000 - 60000)); // -1min de margem
+  // Só salva expiry se tiver info — sem expiry = sem TTL (usa sempre)
+  if (expiresInSec) {
+    localStorage.setItem(TOKEN_EXPIRY_KEY, String(Date.now() + Number(expiresInSec) * 1000 - 60000));
+  }
 }
 
 function loadToken() {
   const token  = localStorage.getItem(TOKEN_STORAGE_KEY);
+  if (!token) return null;
+  // Se não há expiry salvo, retorna o token (será validado ao usar)
   const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
-  if (token && Date.now() < expiry) return token;
-  return null;
+  if (!expiry || Date.now() < expiry) return token;
+  // Token expirado — limpa do localStorage mas retorna para tentar reautenticar
+  return { expired: true, token };
 }
 
 function clearToken() {
@@ -179,16 +192,37 @@ const useGoogleCalendar = () => {
           return;
         }
 
-        // 2. Token salvo no localStorage (sessão persistente)
+        // 2. Hash na URL (caso location.replace não tenha funcionado)
+        extractTokenFromHash();
+
+        // 3. Token salvo no localStorage
         const savedToken = loadToken();
         if (savedToken) {
-          await authenticateWithToken(savedToken, null);
-          setIsLoading(false);
-          return;
-        }
+          const tokenStr = typeof savedToken === 'object' ? savedToken.token : savedToken;
+          const expired  = typeof savedToken === 'object' && savedToken.expired;
 
-        // 3. Hash na URL (caso location.replace não tenha funcionado)
-        extractTokenFromHash(); // se tiver token, salva e recarrega
+          if (!expired) {
+            // Token ainda válido — usa direto
+            await authenticateWithToken(tokenStr, null);
+            setIsLoading(false);
+            return;
+          }
+
+          // Token expirado — tenta reautenticar silenciosamente
+          // Redireciona sem prompt: se o usuário tiver sessão Google ativa, retorna token automaticamente
+          const params = new URLSearchParams({
+            client_id:     GOOGLE_CONFIG.CLIENT_ID,
+            redirect_uri:  window.location.origin + '/',
+            response_type: 'token',
+            scope:         GOOGLE_CONFIG.SCOPES,
+            prompt:        'none', // sem interação do usuário
+            include_granted_scopes: 'false',
+          });
+          // Salva o token expirado no session para não perder referência
+          sessionStorage.setItem('gc_silent_refresh', '1');
+          window.location.replace(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+          return; // página vai recarregar
+        }
 
         setIsLoading(false);
 
@@ -333,6 +367,29 @@ const useGoogleCalendar = () => {
       fetchEvents(now.getFullYear(), now.getMonth() + 1);
     }
   }, [calendarId, isSignedIn, fetchEvents]);
+
+  // Renova o token silenciosamente antes de expirar
+  useEffect(() => {
+    if (!isSignedIn) return;
+    const expiry = Number(localStorage.getItem(TOKEN_EXPIRY_KEY) || 0);
+    if (!expiry) return;
+    const msUntilExpiry = expiry - Date.now();
+    const msUntilRefresh = msUntilExpiry - 5 * 60 * 1000; // 5 min antes de expirar
+    if (msUntilRefresh <= 0) return;
+    const timer = setTimeout(() => {
+      const params = new URLSearchParams({
+        client_id:     GOOGLE_CONFIG.CLIENT_ID,
+        redirect_uri:  window.location.origin + '/',
+        response_type: 'token',
+        scope:         GOOGLE_CONFIG.SCOPES,
+        prompt:        'none',
+        include_granted_scopes: 'false',
+      });
+      sessionStorage.setItem('gc_silent_refresh', '1');
+      window.location.replace(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+    }, msUntilRefresh);
+    return () => clearTimeout(timer);
+  }, [isSignedIn]);
 
   // Move ou copia um evento para outra data
   const moveOrCopyEvent = useCallback(async (eventId, targetDate, mode) => {

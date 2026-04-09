@@ -160,8 +160,30 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
           );
         })}
       </div>
+
+      {/* Rodapé com versão do build */}
+      <div style={{
+        textAlign: 'center',
+        padding: '8px 0 4px',
+        fontSize: '0.65rem',
+        color: 'rgba(255,255,255,0.25)',
+        letterSpacing: '0.04em',
+        userSelect: 'none',
+      }}>
+        build {BUILD_SHA} · {BUILD_DATE}
+      </div>
     </div>
   );
 };
 
+// ── Build info ────────────────────────────────────────────
+const BUILD_SHA  = process.env.REACT_APP_BUILD_SHA  ? process.env.REACT_APP_BUILD_SHA.slice(0, 7)  : 'dev';
+const BUILD_DATE = process.env.REACT_APP_BUILD_DATE
+  ? new Date(process.env.REACT_APP_BUILD_DATE).toLocaleString('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo',
+    })
+  : 'local';
+
+export { BUILD_SHA, BUILD_DATE };
 export default CalendarView;

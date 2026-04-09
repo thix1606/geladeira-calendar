@@ -30,6 +30,8 @@ jobs:
           REACT_APP_GOOGLE_CLIENT_ID: ${{ secrets.REACT_APP_GOOGLE_CLIENT_ID }}
           REACT_APP_GOOGLE_API_KEY: ${{ secrets.REACT_APP_GOOGLE_API_KEY }}
           REACT_APP_PIN: ${{ secrets.REACT_APP_PIN }}
+          REACT_APP_BUILD_SHA: ${{ github.sha }}
+          REACT_APP_BUILD_DATE: ${{ github.event.head_commit.timestamp }}
           CI: false
           NODE_OPTIONS: --openssl-legacy-provider
           DISABLE_ESLINT_PLUGIN: true

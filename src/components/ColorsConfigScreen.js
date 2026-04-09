@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { COLOR_PALETTE } from "../hooks/useDayColors";
 
-export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack }) {
+export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, syncing }) {
   const [editing, setEditing]       = useState(null); // { id, hex, name } ou null
   const [nameInput, setNameInput]   = useState("");
 
@@ -33,7 +33,8 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
         {/* Header */}
         <div style={styles.header}>
           <button style={styles.backBtn} onClick={onBack}>‹</button>
-          <h2 style={styles.title}>Cores do Calendário</h2>
+            <h2 style={styles.title}>Cores do Calendário</h2>
+          {syncing && <span style={{ fontSize: '0.75rem', color: '#aaa', marginLeft: 'auto' }}>sincronizando…</span>}
         </div>
 
         <p style={styles.hint}>

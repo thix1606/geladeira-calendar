@@ -1,8 +1,11 @@
 // ============================================================
 // useDayColors — cores nomeadas configuráveis + cor por dia
 // ============================================================
+// colorsConfig é sincronizado com o Google Calendar (servidor).
+// dayColors é salvo apenas no localStorage (por ser por-dispositivo/dia).
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { loadColorsFromServer, saveColorsToServer } from "../services/colorsSync";
 
 const COLORS_CONFIG_KEY = "cal_colors_config";
 const DAY_COLORS_KEY    = "cal_day_colors";
@@ -19,14 +22,11 @@ export const COLOR_PALETTE = [
   { hex: "#20C997", id: "teal"   },
 ];
 
-// Estrutura de uma cor configurada:
-// { id: "pink", hex: "#FF6B9D", name: "Papai" }
-
-function loadColorsConfig() {
+function loadColorsConfigLocal() {
   try { return JSON.parse(localStorage.getItem(COLORS_CONFIG_KEY) || "[]"); } catch { return []; }
 }
 
-function saveColorsConfig(list) {
+function saveColorsConfigLocal(list) {
   localStorage.setItem(COLORS_CONFIG_KEY, JSON.stringify(list));
 }
 
@@ -43,27 +43,53 @@ export function dateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
 }
 
-export function useDayColors() {
-  const [colorsConfig, setColorsConfig] = useState(loadColorsConfig);
+export function useDayColors(calendarId) {
+  const [colorsConfig, setColorsConfig] = useState(loadColorsConfigLocal);
   const [dayColors, setDayColors]       = useState(loadDayColors);
+  const [syncing, setSyncing]           = useState(false);
 
-  // ── Configuração de cores ──────────────────────────────
+  // ── Carrega do servidor quando calendarId fica disponível ──
+  useEffect(() => {
+    if (!calendarId) return;
+    setSyncing(true);
+    loadColorsFromServer(calendarId)
+      .then((serverConfig) => {
+        if (serverConfig && serverConfig.length > 0) {
+          // Servidor tem dados — usa como fonte de verdade
+          saveColorsConfigLocal(serverConfig);
+          setColorsConfig(serverConfig);
+        } else if (colorsConfig.length > 0) {
+          // Servidor vazio mas localStorage tem dados — sobe pro servidor
+          saveColorsToServer(calendarId, colorsConfig).catch(console.warn);
+        }
+      })
+      .catch(console.warn)
+      .finally(() => setSyncing(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarId]);
 
-  const saveColor = useCallback((colorDef) => {
-    // colorDef: { id, hex, name }
+  // ── Configuração de cores ──────────────────────────────────
+
+  const saveColor = useCallback(async (colorDef) => {
     const updated = colorsConfig.filter((c) => c.id !== colorDef.id);
     updated.push(colorDef);
-    saveColorsConfig(updated);
+    saveColorsConfigLocal(updated);
     setColorsConfig(updated);
-  }, [colorsConfig]);
+    if (calendarId) {
+      try { await saveColorsToServer(calendarId, updated); } catch (e) { console.warn("Sync falhou:", e); }
+    }
+  }, [colorsConfig, calendarId]);
 
-  const removeColor = useCallback((colorId) => {
+  const removeColor = useCallback(async (colorId) => {
     const updated = colorsConfig.filter((c) => c.id !== colorId);
-    saveColorsConfig(updated);
+    saveColorsConfigLocal(updated);
     setColorsConfig(updated);
-  }, [colorsConfig]);
+    if (calendarId) {
+      try { await saveColorsToServer(calendarId, updated); } catch (e) { console.warn("Sync falhou:", e); }
+    }
+  }, [colorsConfig, calendarId]);
 
-  // ── Cor por dia ───────────────────────────────────────
+  // ── Cor por dia (localStorage apenas) ─────────────────────
 
   const getDayColor = useCallback((date) => {
     const key = dateKey(date);
@@ -77,11 +103,8 @@ export function useDayColors() {
     const key = dateKey(date);
     if (!key) return;
     const updated = { ...dayColors };
-    if (!colorId) {
-      delete updated[key];
-    } else {
-      updated[key] = colorId;
-    }
+    if (!colorId) delete updated[key];
+    else updated[key] = colorId;
     saveDayColors(updated);
     setDayColors(updated);
   }, [dayColors]);
@@ -95,5 +118,6 @@ export function useDayColors() {
     getDayColor,
     setDayColor,
     getRawDayColors,
+    syncing,
   };
 }

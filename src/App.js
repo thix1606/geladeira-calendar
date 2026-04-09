@@ -27,14 +27,14 @@ function App() {
   const [pinUnlocked, setPinUnlocked] = useState(() => isPinSessionValid());
 
   const {
-    isSignedIn, isLoading, error, events,
+    isSignedIn, isLoading, error, events, calendarId,
     blockedEmail, signIn, signOut, addEvent, deleteEvent, fetchEvents,
   } = useGoogleCalendar();
 
   const {
     colorsConfig, saveColor, removeColor,
-    getDayColor, setDayColor, getRawDayColors,
-  } = useDayColors();
+    getDayColor, setDayColor, getRawDayColors, syncing,
+  } = useDayColors(calendarId);
 
   // Emojis flutuantes
   useEffect(() => {
@@ -184,6 +184,7 @@ function App() {
         onSave={saveColor}
         onRemove={removeColor}
         onBack={handleBackToMonth}
+        syncing={syncing}
       />
     );
   }

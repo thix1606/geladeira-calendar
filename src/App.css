@@ -552,6 +552,19 @@ html, body {
   flex-shrink: 0;
 }
 
+.event-bar-title {
+  font-size: 0.55rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
+  min-width: 0;
+  flex: 1;
+  margin-left: 2px;
+}
+
 .event-count-badge {
   font-size: 0.62rem;
   font-weight: 800;

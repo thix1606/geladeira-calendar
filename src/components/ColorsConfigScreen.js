@@ -5,7 +5,7 @@
 import React, { useState } from "react";
 import { COLOR_PALETTE } from "../hooks/useDayColors";
 
-export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, syncing }) {
+export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, onSignOut, syncing }) {
   const [editing, setEditing]       = useState(null); // { id, hex, name } ou null
   const [nameInput, setNameInput]   = useState("");
 
@@ -107,6 +107,16 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
         )}
 
         {/* Lista configuradas */}
+        {/* Logout */}
+        <div style={{ marginTop: '2rem', borderTop: '1px solid #f0e8ff', paddingTop: '1.25rem' }}>
+          <button
+            onClick={onSignOut}
+            style={{ ...styles.btn, ...styles.btnDanger, width: '100%', textAlign: 'center' }}
+          >
+            Sair da conta Google
+          </button>
+        </div>
+
         {colorsConfig.length > 0 && (
           <div style={styles.configuredList}>
             <p style={styles.listTitle}>Configuradas</p>

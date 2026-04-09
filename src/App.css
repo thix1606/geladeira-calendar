@@ -175,6 +175,30 @@ html, body {
   box-shadow: 0 3px 12px rgba(199,125,255,0.4);
 }
 
+.fab-settings {
+  position: fixed;
+  bottom: 28px;
+  left: 24px;
+  z-index: 100;
+  width: 52px;
+  height: 52px;
+  border: none;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 16px rgba(199,125,255,0.3);
+  font-size: 1.5rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.fab-settings:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 8px rgba(199,125,255,0.25);
+}
+
 .fab-plus {
   font-size: 1.6rem;
   line-height: 1;

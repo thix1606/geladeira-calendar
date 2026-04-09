@@ -190,6 +190,7 @@ function App() {
         onSave={saveColor}
         onRemove={removeColor}
         onBack={handleBackToMonth}
+        onSignOut={handleSignOut}
         syncing={syncing}
       />
     );
@@ -247,14 +248,23 @@ function App() {
       )}
 
       {view === "month" && (
-        <button
-          className="fab-add"
-          onClick={() => handleOpenAddModal(new Date())}
-          aria-label="Adicionar compromisso"
-        >
-          <span className="fab-plus">+</span>
-          <span className="fab-label">Novo</span>
-        </button>
+        <>
+          <button
+            className="fab-add"
+            onClick={() => handleOpenAddModal(new Date())}
+            aria-label="Adicionar compromisso"
+          >
+            <span className="fab-plus">+</span>
+            <span className="fab-label">Novo</span>
+          </button>
+          <button
+            className="fab-settings"
+            onClick={handleOpenSettings}
+            aria-label="Configurações"
+          >
+            ⚙️
+          </button>
+        </>
       )}
     </div>
   );

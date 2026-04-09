@@ -25,6 +25,7 @@ function App() {
   const [addForDate, setAddForDate] = useState(null);
   const [floatingEmojis, setFloatingEmojis] = useState([]);
   const [todayPulse, setTodayPulse] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
   const [pinUnlocked, setPinUnlocked] = useState(() => isPinSessionValid());
 
@@ -74,8 +75,10 @@ function App() {
   // Refs para o handler estável de back (sem stale closure)
   const viewRef         = React.useRef(view);
   const showModalRef    = React.useRef(showAddModal);
-  useEffect(() => { viewRef.current      = view;         }, [view]);
-  useEffect(() => { showModalRef.current = showAddModal; }, [showAddModal]);
+  const showExitRef     = React.useRef(false);
+  useEffect(() => { viewRef.current      = view;             }, [view]);
+  useEffect(() => { showModalRef.current = showAddModal;     }, [showAddModal]);
+  useEffect(() => { showExitRef.current  = showExitConfirm;  }, [showExitConfirm]);
 
   // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener.
   // Prioridade: 1) fecha modal aberto  2) volta pra month  3) mantém guard (fica no app)
@@ -96,9 +99,13 @@ function App() {
         setShowAddModal(false);
         return;
       }
+      if (showExitRef.current) return; // já está mostrando o diálogo
       if (viewRef.current === "day" || viewRef.current === "settings") {
         handleBackToMonth();
+        return;
       }
+      // Tela principal: pergunta se quer sair
+      setShowExitConfirm(true);
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -232,6 +239,56 @@ function App() {
 
   return (
     <div className="app-root">
+      {showExitConfirm && (
+        <div
+          onClick={() => setShowExitConfirm(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300,
+            background: 'rgba(58,26,62,0.55)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            animation: 'overlayIn 0.15s ease',
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: '#fff', borderRadius: '2rem 2rem 0 0',
+              padding: '0 1.5rem 2.5rem', width: '100%', maxWidth: 480,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem',
+              boxShadow: '0 -8px 40px rgba(199,125,255,0.2)',
+              animation: 'sheetUp 0.25s cubic-bezier(0.34,1.56,0.64,1)',
+              fontFamily: "'Nunito', sans-serif",
+            }}
+          >
+            <div style={{ width: 40, height: 4, borderRadius: 2, background: '#e0d0f0', margin: '0.75rem 0 1rem', flexShrink: 0 }} />
+            <span style={{ fontSize: '1.8rem' }}>🚪</span>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#3A1A3E', fontFamily: "'Baloo 2', cursive", margin: '0.25rem 0 0.25rem', textAlign: 'center' }}>
+              Sair do Calendário Mágico?
+            </h3>
+            <button
+              style={{
+                width: '100%', border: 'none', borderRadius: '1rem', padding: '0.9rem',
+                fontSize: '1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.4rem',
+                background: 'linear-gradient(135deg, #ff6b6b, #e03131)', color: '#fff',
+              }}
+              onClick={() => { setShowExitConfirm(false); window.history.go(-50); }}
+            >
+              Sim, sair
+            </button>
+            <button
+              style={{
+                width: '100%', border: 'none', borderRadius: '1rem', padding: '0.9rem',
+                fontSize: '1rem', fontWeight: 700, cursor: 'pointer', marginTop: '0.25rem',
+                background: '#f8f0ff', color: '#7B2FBE',
+              }}
+              onClick={() => setShowExitConfirm(false)}
+            >
+              Não, ficar
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="floating-layer" aria-hidden="true">
         {floatingEmojis.map((item) => (
           <span key={item.id} className="floating-emoji" style={{

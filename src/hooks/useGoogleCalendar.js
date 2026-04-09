@@ -1,104 +1,56 @@
-import { useState, useEffect, useCallback } from "react";
+// ============================================================
+// useGoogleCalendar — Google Identity Services (GIS) + gapi.client
+// ============================================================
+// Autenticação: @google/model-viewer → google.accounts.oauth2 (GIS)
+// API Calendar: gapi.client (mantida, apenas autenticação mudou)
+// Migração: https://developers.google.com/identity/gsi/web/guides/gis-migration
+// ============================================================
+
+import { useState, useEffect, useCallback, useRef } from "react";
 import GOOGLE_CONFIG from "../googleConfig";
 
-// Retorna o e-mail do usuário logado (ou null)
-function getCurrentUserEmail() {
-  try {
-    const user = window.gapi.auth2.getAuthInstance().currentUser.get();
-    return user.getBasicProfile().getEmail().toLowerCase();
-  } catch {
-    return null;
-  }
-}
+// ── Helpers ────────────────────────────────────────────────
 
-// Verifica se o e-mail está na whitelist configurada
 function isEmailAllowed(email) {
   if (!email) return false;
   const list = (GOOGLE_CONFIG.ALLOWED_EMAILS || []).map((e) => e.toLowerCase());
-  if (list.length === 0) return true; // whitelist vazia = sem restrição
+  if (list.length === 0) return true;
   return list.includes(email.toLowerCase());
 }
 
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`Falha ao carregar: ${src}`));
+    document.body.appendChild(s);
+  });
+}
+
+// ── Hook ───────────────────────────────────────────────────
+
 const useGoogleCalendar = () => {
-  const [isSignedIn, setIsSignedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [calendarId, setCalendarId] = useState(null);
-  const [events, setEvents] = useState([]);
-  const [error, setError] = useState(null);
+  const [isSignedIn, setIsSignedIn]   = useState(false);
+  const [isLoading, setIsLoading]     = useState(true);
+  const [calendarId, setCalendarId]   = useState(null);
+  const [events, setEvents]           = useState([]);
+  const [error, setError]             = useState(null);
   const [blockedEmail, setBlockedEmail] = useState(null);
 
-  const checkEmailAccess = useCallback(async (authInstance) => {
-    const email = getCurrentUserEmail();
-    if (!isEmailAllowed(email)) {
-      setBlockedEmail(email);
-      await authInstance.signOut();
-      setIsSignedIn(false);
-      setCalendarId(null);
-      setEvents([]);
-      return false;
-    }
-    setBlockedEmail(null);
-    return true;
-  }, []);
+  // Referência ao token client do GIS
+  const tokenClientRef = useRef(null);
+  // Resolve/reject do signIn pendente
+  const signInResolveRef = useRef(null);
 
-  useEffect(() => {
-    const loadGapiScript = () => {
-      if (window.gapi) { initClient(); return; }
-      const script = document.createElement("script");
-      script.src = "https://apis.google.com/js/api.js";
-      script.onload = () => window.gapi.load("client:auth2", initClient);
-      script.onerror = () => setError("Erro ao carregar Google API");
-      document.body.appendChild(script);
-    };
-
-    const initClient = async () => {
-      try {
-        await window.gapi.client.init({
-          apiKey: GOOGLE_CONFIG.API_KEY,
-          clientId: GOOGLE_CONFIG.CLIENT_ID,
-          discoveryDocs: GOOGLE_CONFIG.DISCOVERY_DOCS,
-          scope: GOOGLE_CONFIG.SCOPES,
-        });
-
-        const authInstance = window.gapi.auth2.getAuthInstance();
-        const signedIn = authInstance.isSignedIn.get();
-
-        if (signedIn) {
-          const allowed = await checkEmailAccess(authInstance);
-          setIsSignedIn(allowed);
-          if (allowed) await ensureCalendarExists();
-        } else {
-          setIsSignedIn(false);
-        }
-
-        authInstance.isSignedIn.listen(async (signed) => {
-          if (signed) {
-            const allowed = await checkEmailAccess(authInstance);
-            setIsSignedIn(allowed);
-            if (allowed) await ensureCalendarExists();
-          } else {
-            setIsSignedIn(false);
-            setCalendarId(null);
-            setEvents([]);
-          }
-        });
-      } catch (err) {
-        const detail = err?.details ?? err?.error ?? err?.message ?? JSON.stringify(err);
-        console.error("Erro ao inicializar Google API:", err);
-        setError(`Erro de configuração: ${detail}`);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadGapiScript();
-  }, [checkEmailAccess]);
+  // ── Calendário ─────────────────────────────────────────
 
   const ensureCalendarExists = useCallback(async () => {
     try {
-      const response = await window.gapi.client.calendar.calendarList.list();
-      const calendars = response.result.items || [];
-      const existing = calendars.find((cal) => cal.summary === GOOGLE_CONFIG.CALENDAR_NAME);
+      const res = await window.gapi.client.calendar.calendarList.list();
+      const calendars = res.result.items || [];
+      const existing = calendars.find((c) => c.summary === GOOGLE_CONFIG.CALENDAR_NAME);
       if (existing) { setCalendarId(existing.id); return existing.id; }
       const newCal = await window.gapi.client.calendar.calendars.insert({
         resource: {
@@ -115,42 +67,128 @@ const useGoogleCalendar = () => {
     }
   }, []);
 
-  const fetchEvents = useCallback(async (year, month) => {
-    if (!calendarId) return;
-    try {
-      const start = new Date(year, month - 1, 1);
-      const end = new Date(year, month + 1, 0, 23, 59, 59);
-      const response = await window.gapi.client.calendar.events.list({
-        calendarId,
-        timeMin: start.toISOString(),
-        timeMax: end.toISOString(),
-        singleEvents: true,
-        orderBy: "startTime",
-        maxResults: 200,
-      });
-      setEvents(response.result.items || []);
-    } catch (err) {
-      console.error("Erro ao buscar eventos:", err);
-    }
-  }, [calendarId]);
+  // ── Inicialização ───────────────────────────────────────
 
-  const signIn = useCallback(async () => {
-    try {
-      const authInstance = window.gapi.auth2.getAuthInstance();
-      await authInstance.signIn();
-      const allowed = await checkEmailAccess(authInstance);
-      if (allowed) return await ensureCalendarExists();
-    } catch (err) {
-      console.error("Erro no login:", err);
-    }
-  }, [ensureCalendarExists, checkEmailAccess]);
+  useEffect(() => {
+    let cancelled = false;
 
-  const signOut = useCallback(async () => {
-    await window.gapi.auth2.getAuthInstance().signOut();
+    async function init() {
+      try {
+        // Carrega os dois scripts em paralelo
+        await Promise.all([
+          loadScript("https://apis.google.com/js/api.js"),
+          loadScript("https://accounts.google.com/gsi/client"),
+        ]);
+
+        if (cancelled) return;
+
+        // Inicializa gapi.client (sem autenticação — só discovery)
+        await new Promise((resolve, reject) => {
+          window.gapi.load("client", { callback: resolve, onerror: reject });
+        });
+
+        await window.gapi.client.init({
+          apiKey:         GOOGLE_CONFIG.API_KEY,
+          discoveryDocs:  GOOGLE_CONFIG.DISCOVERY_DOCS,
+        });
+
+        if (cancelled) return;
+
+        // Inicializa o token client do GIS
+        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CONFIG.CLIENT_ID,
+          scope:     GOOGLE_CONFIG.SCOPES,
+          callback:  async (tokenResponse) => {
+            if (tokenResponse.error) {
+              console.error("GIS token error:", tokenResponse);
+              if (signInResolveRef.current) { signInResolveRef.current(false); signInResolveRef.current = null; }
+              return;
+            }
+
+            // Token recebido — pega o e-mail via userinfo
+            try {
+              const userInfo = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+              }).then((r) => r.json());
+
+              const email = (userInfo.email || "").toLowerCase();
+
+              if (!isEmailAllowed(email)) {
+                setBlockedEmail(email);
+                window.google.accounts.oauth2.revoke(tokenResponse.access_token);
+                setIsSignedIn(false);
+                if (signInResolveRef.current) { signInResolveRef.current(false); signInResolveRef.current = null; }
+                return;
+              }
+
+              setBlockedEmail(null);
+              setIsSignedIn(true);
+              await ensureCalendarExists();
+              if (signInResolveRef.current) { signInResolveRef.current(true); signInResolveRef.current = null; }
+            } catch (err) {
+              console.error("Erro ao obter userinfo:", err);
+              if (signInResolveRef.current) { signInResolveRef.current(false); signInResolveRef.current = null; }
+            }
+          },
+        });
+
+        if (cancelled) return;
+        setIsLoading(false);
+
+      } catch (err) {
+        if (cancelled) return;
+        const detail = err?.details ?? err?.message ?? JSON.stringify(err);
+        console.error("Erro ao inicializar Google API:", err);
+        setError(`Erro de configuração: ${detail}`);
+        setIsLoading(false);
+      }
+    }
+
+    init();
+    return () => { cancelled = true; };
+  }, [ensureCalendarExists]);
+
+  // ── Auth ────────────────────────────────────────────────
+
+  const signIn = useCallback(() => {
+    return new Promise((resolve) => {
+      signInResolveRef.current = resolve;
+      tokenClientRef.current?.requestAccessToken({ prompt: "consent" });
+    });
+  }, []);
+
+  const signOut = useCallback(() => {
+    const token = window.gapi?.client?.getToken();
+    if (token?.access_token) {
+      window.google?.accounts?.oauth2?.revoke(token.access_token);
+      window.gapi.client.setToken(null);
+    }
+    setIsSignedIn(false);
     setCalendarId(null);
     setEvents([]);
     setBlockedEmail(null);
   }, []);
+
+  // ── Eventos ─────────────────────────────────────────────
+
+  const fetchEvents = useCallback(async (year, month) => {
+    if (!calendarId) return;
+    try {
+      const start = new Date(year, month - 1, 1);
+      const end   = new Date(year, month + 1, 0, 23, 59, 59);
+      const res   = await window.gapi.client.calendar.events.list({
+        calendarId,
+        timeMin:      start.toISOString(),
+        timeMax:      end.toISOString(),
+        singleEvents: true,
+        orderBy:      "startTime",
+        maxResults:   200,
+      });
+      setEvents(res.result.items || []);
+    } catch (err) {
+      console.error("Erro ao buscar eventos:", err);
+    }
+  }, [calendarId]);
 
   const addEvent = useCallback(async ({ title, emoji, date, startTime, endTime, color, notes }) => {
     if (!calendarId) return null;
@@ -167,8 +205,8 @@ const useGoogleCalendar = () => {
         resource.start = { date: dateStr };
         resource.end   = { date: dateStr };
       }
-      const response = await window.gapi.client.calendar.events.insert({ calendarId, resource });
-      return response.result;
+      const res = await window.gapi.client.calendar.events.insert({ calendarId, resource });
+      return res.result;
     } catch (err) {
       console.error("Erro ao adicionar evento:", err);
       return null;

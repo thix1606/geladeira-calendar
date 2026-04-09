@@ -477,6 +477,24 @@ html, body {
 .day-cell.today .day-num { color: white !important; }
 .day-cell.other-month { opacity: 0.35; }
 
+.day-cell.past {
+  background: #f0f0f4;
+  box-shadow: none;
+  opacity: 0.55;
+}
+
+.day-cell.past.has-events {
+  background: #e8e8f0;
+}
+
+.day-cell.past .day-num {
+  color: #aaa;
+}
+
+.day-cell.past .event-bar {
+  opacity: 0.5;
+}
+
 .day-num {
   font-family: var(--font-display);
   font-size: 1.1rem;
@@ -490,12 +508,14 @@ html, body {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  align-items: center;
+  align-items: stretch;
 }
 
-.event-dot-emoji {
-  font-size: 0.85rem;
-  line-height: 1;
+.event-bar {
+  height: 4px;
+  border-radius: 2px;
+  width: 100%;
+  min-width: 0;
 }
 
 .event-count-badge {

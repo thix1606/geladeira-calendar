@@ -6,7 +6,7 @@ const MONTH_NAMES_PT = [
   "Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"
 ];
 
-const WEEKDAYS = ["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+const WEEKDAYS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
 
 // Paleta de cores por colorId do Google Calendar
 const COLOR_BY_ID = {
@@ -67,19 +67,15 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
     return map;
   }, [events, year, month]);
 
-  // Gera as células do calendário
+  // Gera as células do calendário (semana começa na segunda-feira)
   const cells = useMemo(() => {
-    const firstDay = new Date(year, month, 1).getDay(); // 0=Dom
+    const rawFirstDay = new Date(year, month, 1).getDay(); // 0=Dom
+    const firstDay = (rawFirstDay + 6) % 7; // Seg=0, Ter=1, … Dom=6
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const result = [];
 
-    // Células vazias antes do primeiro dia
     for (let i = 0; i < firstDay; i++) result.push({ type: "empty", key: `e${i}` });
-
-    // Dias do mês
-    for (let d = 1; d <= daysInMonth; d++) {
-      result.push({ type: "day", day: d, key: `d${d}` });
-    }
+    for (let d = 1; d <= daysInMonth; d++) result.push({ type: "day", day: d, key: `d${d}` });
 
     return result;
   }, [year, month]);
@@ -92,6 +88,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
 
   const isSunday = (day) => new Date(year, month, day).getDay() === 0;
   const isSaturday = (day) => new Date(year, month, day).getDay() === 6;
+  const isPast = (day) => new Date(year, month, day) < new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   return (
     <div className="calendar-view">
@@ -118,7 +115,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
         {WEEKDAYS.map((wd, i) => (
           <div
             key={wd}
-            className={`weekday-label ${i === 0 ? "sun" : i === 6 ? "sat" : ""}`}
+            className={`weekday-label ${i === 6 ? "sun" : i === 5 ? "sat" : ""}`}
           >
             {wd}
           </div>
@@ -144,6 +141,7 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
               className={[
                 "day-cell",
                 isToday(day) ? "today" : "",
+                isPast(day) ? "past" : "",
                 isSunday(day) ? "sunday" : "",
                 isSaturday(day) ? "saturday" : "",
                 hasEvents ? "has-events" : "",
@@ -182,12 +180,14 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
               {hasEvents && (
                 <div className="day-events-preview">
                   {preview.map((ev) => {
-                    const emoji = getEventEmoji(ev);
-                    if (!emoji) return null; // eventos de cor são omitidos aqui
+                    if (isColorEvent(ev)) return null;
                     return (
-                      <span key={ev.id} className="event-dot-emoji" title={ev.summary}>
-                        {emoji}
-                      </span>
+                      <span
+                        key={ev.id}
+                        className="event-bar"
+                        title={ev.summary}
+                        style={{ background: getEventColor(ev) }}
+                      />
                     );
                   })}
                   {extra > 0 && (

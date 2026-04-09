@@ -51,6 +51,7 @@ const DayView = ({
   onCreateColorEvent,
   onDeleteColorEvent,
   colorEventId,
+  navPosition = 'top',
 }) => {
   const dayEvents = useMemo(() => {
     if (!date) return [];
@@ -128,18 +129,22 @@ const DayView = ({
         className="day-header"
         style={headerBg ? { background: `linear-gradient(135deg, ${headerBg}cc, ${headerBg}88)` } : {}}
       >
-        <button className="back-btn touch-btn" onClick={onBack} aria-label="Voltar">‹</button>
-        <div className="day-header-info">
+        {navPosition !== 'bottom' && (
+          <button className="back-btn touch-btn" onClick={onBack} aria-label="Voltar">‹</button>
+        )}
+        <div className="day-header-info" style={navPosition === 'bottom' ? { textAlign: 'center' } : {}}>
           <div className="day-header-weekday">{weekday}</div>
           <div className="day-header-date">{dateLabel}</div>
         </div>
-        <button className="day-add-btn touch-btn" onClick={onAddEvent}>
-          <span>＋</span> Novo
-        </button>
+        {navPosition !== 'bottom' && (
+          <button className="day-add-btn touch-btn" onClick={onAddEvent}>
+            <span>＋</span> Novo
+          </button>
+        )}
       </div>
 
-      {/* Seletor de cor do dia */}
-      {colorsConfig.length > 0 && (
+      {/* Seletor de cor do dia — só aparece no topo quando navPosition === 'top' */}
+      {navPosition !== 'bottom' && colorsConfig.length > 0 && (
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           padding: "10px 16px 4px", flexWrap: "wrap",
@@ -147,8 +152,6 @@ const DayView = ({
           <span style={{ fontSize: "0.75rem", color: "var(--text-soft)", fontWeight: 700, marginRight: 2 }}>
             Cor do dia:
           </span>
-
-          {/* Opção "nenhuma" */}
           <button
             onClick={() => handleSelectColor(null)}
             title="Remover cor"
@@ -161,7 +164,6 @@ const DayView = ({
               fontSize: "0.8rem", color: "#888", fontWeight: 700,
             }}
           >✕</button>
-
           {colorsConfig.map((c) => (
             <button
               key={c.id}
@@ -183,7 +185,7 @@ const DayView = ({
         </div>
       )}
 
-      {colorsConfig.length === 0 && (
+      {navPosition !== 'bottom' && colorsConfig.length === 0 && (
         <p style={{ fontSize: "0.75rem", color: "#bbb", padding: "8px 16px" }}>
           Configure cores em ⚙️ Configurações para marcar dias especiais.
         </p>
@@ -191,14 +193,14 @@ const DayView = ({
 
       {/* Lista de eventos */}
       {dayEvents.length === 0 ? (
-        <div className="day-empty">
+        <div className="day-empty" style={navPosition === 'bottom' ? { paddingBottom: '80px' } : {}}>
           <div className="day-empty-emoji">🌟</div>
           <div className="day-empty-text">
             Nenhum compromisso ainda!<br />Toque em "Novo" para adicionar ✨
           </div>
         </div>
       ) : (
-        <div className="day-events-list">
+        <div className="day-events-list" style={navPosition === 'bottom' ? { paddingBottom: '80px' } : {}}>
           {dayEvents.map((ev, idx) => (
             <div
               key={ev.id}
@@ -230,6 +232,50 @@ const DayView = ({
         </div>
       )}
       <BuildVersion />
+
+      {/* Barra inferior — só quando navPosition === 'bottom' */}
+      {navPosition === 'bottom' && (
+        <div className="bottom-nav-bar day-bottom-bar">
+          <button className="bnb-btn bnb-back" onClick={onBack} aria-label="Voltar">‹</button>
+          {colorsConfig.length > 0 && (
+            <div className="bnb-colors">
+              <button
+                onClick={() => handleSelectColor(null)}
+                title="Remover cor"
+                style={{
+                  width: 36, height: 36, borderRadius: '50%',
+                  background: '#e0e0e0',
+                  border: !dayColor ? '3px solid #3A1A3E' : '2px solid transparent',
+                  cursor: 'pointer', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '0.8rem', color: '#888', fontWeight: 700,
+                }}
+              >✕</button>
+              {colorsConfig.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectColor(c.id)}
+                  title={c.name}
+                  style={{
+                    width: 36, height: 36, borderRadius: '50%',
+                    background: c.hex,
+                    border: dayColor?.id === c.id ? '3px solid #3A1A3E' : '2px solid transparent',
+                    cursor: 'pointer', flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '0.85rem', fontWeight: 800,
+                    color: '#fff', textShadow: '0 1px 3px rgba(0,0,0,0.35)',
+                  }}
+                >
+                  {c.name.charAt(0).toUpperCase()}
+                </button>
+              ))}
+            </div>
+          )}
+          <button className="bnb-btn bnb-add" onClick={onAddEvent} aria-label="Adicionar compromisso">
+            <span>+</span> Novo
+          </button>
+        </div>
+      )}
     </div>
   );
 };

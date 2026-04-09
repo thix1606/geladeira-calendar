@@ -7,7 +7,7 @@ import ConfirmModal from "./ConfirmModal";
 import { COLOR_PALETTE } from "../hooks/useDayColors";
 import BuildVersion from "./BuildVersion";
 
-export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, onSignOut, syncing }) {
+export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onBack, onSignOut, syncing, navPosition = 'top', onNavPositionChange }) {
   const [editing,     setEditing]     = useState(null);
   const [nameInput,   setNameInput]   = useState("");
   const [confirmExit, setConfirmExit] = useState(false);
@@ -117,9 +117,29 @@ export default function ColorsConfigScreen({ colorsConfig, onSave, onRemove, onB
           </div>
         )}
 
+        {/* Posição dos botões */}
+        <div style={styles.settingSection}>
+          <p style={styles.settingTitle}>Posição dos botões</p>
+          <div style={styles.toggleRow}>
+            <button
+              style={{ ...styles.toggleBtn, ...(navPosition === 'top' ? styles.toggleActive : {}) }}
+              onClick={() => onNavPositionChange?.('top')}
+            >
+              ☝️ Em cima
+            </button>
+            <button
+              style={{ ...styles.toggleBtn, ...(navPosition === 'bottom' ? styles.toggleActive : {}) }}
+              onClick={() => onNavPositionChange?.('bottom')}
+            >
+              👇 Embaixo
+            </button>
+          </div>
+          <p style={styles.settingHint}>
+            "Embaixo" move os botões de navegação para a base da tela.
+          </p>
+        </div>
+
         {/* Lista configuradas */}
-
-
         {colorsConfig.length > 0 && (
           <div style={styles.configuredList}>
             <p style={styles.listTitle}>Configuradas</p>
@@ -205,6 +225,17 @@ const styles = {
   btnPrimary:   { background: "linear-gradient(135deg, #C77DFF, #7B2FBE)", color: "#fff" },
   btnDanger:    { background: "#fff0f0", color: "#e03131", border: "1px solid #ffcdd2" },
   btnSecondary: { background: "#f0f0f0", color: "#666" },
+  settingSection: { borderTop: "1px solid #f0e8ff", paddingTop: "1rem", marginBottom: "1.25rem" },
+  settingTitle: { fontSize: "0.75rem", fontWeight: 700, color: "#7B2FBE", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.6rem" },
+  settingHint: { fontSize: "0.78rem", color: "#aaa", marginTop: "0.4rem" },
+  toggleRow: { display: "flex", gap: 8 },
+  toggleBtn: {
+    flex: 1, border: "2px solid #e0c8ff", borderRadius: "0.75rem",
+    padding: "0.6rem 0.5rem", fontSize: "0.9rem", fontWeight: 700,
+    cursor: "pointer", background: "#fff", color: "#7B2FBE",
+    transition: "all 0.15s",
+  },
+  toggleActive: { background: "linear-gradient(135deg, #C77DFF, #7B2FBE)", color: "#fff", borderColor: "transparent" },
   configuredList: { borderTop: "1px solid #f0e8ff", paddingTop: "1rem" },
   listTitle: { fontSize: "0.75rem", fontWeight: 700, color: "#7B2FBE", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "0.75rem" },
   configuredRow: { display: "flex", alignItems: "center", gap: 10, marginBottom: 8 },

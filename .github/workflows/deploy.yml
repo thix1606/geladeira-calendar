@@ -19,12 +19,12 @@ jobs:
       - name: Install dependencies
         run: |
           npm install --legacy-peer-deps
-          # Patch: neutraliza ForkTsChecker em todos os lugares
-          find node_modules -name 'ForkTsCheckerWebpackPlugin.js' -not -path '*/fork-ts-checker-webpack-plugin/out/*' | xargs -I{} sh -c 'echo "module.exports = function() {};" > {}'
-          find node_modules -name 'ForkTsCheckerWarningWebpackPlugin.js' | xargs -I{} sh -c 'echo "module.exports = function() {};" > {}'
-          # Fix ajv conflict no fork-ts-checker
-          find node_modules/fork-ts-checker-webpack-plugin -name 'ajv' -type d | head -5
-          find node_modules -path '*/fork-ts-checker-webpack-plugin/node_modules/ajv-keywords/keywords/_formatLimit.js' | xargs -I{} sh -c 'echo "module.exports = {};" > {}'
+          # Patch: substitui ForkTsChecker por stubs para evitar conflito de ajv
+          printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWebpackPlugin.js
+          printf 'module.exports = function() {};\n' > node_modules/react-dev-utils/ForkTsCheckerWarningWebpackPlugin.js
+          # Patch ajv-keywords dentro do fork-ts-checker
+          FMTLIMIT=$(find node_modules/fork-ts-checker-webpack-plugin -name '_formatLimit.js' 2>/dev/null | head -1)
+          if [ -n "$FMTLIMIT" ]; then printf 'module.exports = {};\n' > "$FMTLIMIT"; fi
 
       - name: Build
         run: npm run build

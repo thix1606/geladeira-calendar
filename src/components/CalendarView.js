@@ -22,8 +22,10 @@ function getEventColor(event) {
   return COLOR_BY_ID[event.colorId] || "#FF6B9D";
 }
 
+function isColorEvent(event) { return (event.summary || "").startsWith("📌 Dia com "); }
+
 function getEventEmoji(event) {
-  // Pega o emoji do início do título, se houver
+  if (isColorEvent(event)) return null; // evento de cor não exibe emoji no grid
   const title = event.summary || "";
   const match = title.match(/^(\p{Emoji})/u);
   return match ? match[1] : "📅";
@@ -184,11 +186,15 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
               </span>
               {hasEvents && (
                 <div className="day-events-preview">
-                  {preview.map((ev) => (
-                    <span key={ev.id} className="event-dot-emoji" title={ev.summary}>
-                      {getEventEmoji(ev)}
-                    </span>
-                  ))}
+                  {preview.map((ev) => {
+                    const emoji = getEventEmoji(ev);
+                    if (!emoji) return null; // eventos de cor são omitidos aqui
+                    return (
+                      <span key={ev.id} className="event-dot-emoji" title={ev.summary}>
+                        {emoji}
+                      </span>
+                    );
+                  })}
                   {extra > 0 && (
                     <span className="event-count-badge">+{extra}</span>
                   )}

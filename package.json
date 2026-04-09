@@ -2,7 +2,7 @@
   "name": "geladeira-calendar",
   "version": "1.0.0",
   "private": true,
-  "homepage": "https://thix1606.github.io/geladeira-calendar",
+  "homepage": "./",
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

@@ -105,7 +105,10 @@ const useGoogleCalendar = () => {
               return;
             }
 
-            // Token recebido — pega o e-mail via userinfo
+            // Seta o token no gapi.client para as chamadas da Calendar API
+            window.gapi.client.setToken({ access_token: tokenResponse.access_token });
+
+            // Pega o e-mail via userinfo
             try {
               const userInfo = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
                 headers: { Authorization: `Bearer ${tokenResponse.access_token}` },

@@ -185,13 +185,16 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
                 <div className="day-events-preview">
                   {preview.map((ev) => {
                     if (isColorEvent(ev)) return null;
+                    const emoji = getEventEmoji(ev);
                     return (
                       <span
                         key={ev.id}
                         className="event-bar"
                         title={ev.summary}
                         style={{ background: getEventColor(ev) }}
-                      />
+                      >
+                        {emoji && <span className="event-bar-emoji">{emoji}</span>}
+                      </span>
                     );
                   })}
                   {extra > 0 && (

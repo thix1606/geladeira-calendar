@@ -193,11 +193,13 @@ const DayView = ({
                 </div>
                 {ev.description && <div className="event-notes">{ev.description}</div>}
               </div>
-              <button
-                className="event-delete-btn touch-btn"
-                onClick={() => handleDelete(ev)}
-                aria-label="Apagar evento"
-              >🗑️</button>
+              {!isColorEvent(ev) && (
+                <button
+                  className="event-delete-btn touch-btn"
+                  onClick={() => handleDelete(ev)}
+                  aria-label="Apagar evento"
+                >🗑️</button>
+              )}
             </div>
           ))}
         </div>

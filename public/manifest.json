@@ -1,0 +1,11 @@
+{
+  "name": "Calendário Mágico",
+  "short_name": "Calendário",
+  "description": "Calendário mágico da família",
+  "start_url": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FFF8FC",
+  "theme_color": "#FF6B9D",
+  "lang": "pt-BR"
+}

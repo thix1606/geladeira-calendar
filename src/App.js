@@ -79,11 +79,18 @@ function App() {
 
   // Bloqueia o back do browser — handler registrado UMA VEZ para evitar janela sem listener.
   // Prioridade: 1) fecha modal aberto  2) volta pra month  3) mantém guard (fica no app)
+  // Empilha várias entradas de guarda para garantir buffer mesmo em browsers que não disparam
+  // popstate ao chegar à primeira entrada do histórico.
   useEffect(() => {
     window.history.replaceState({ app: true }, "");
-    window.history.pushState({ app: true }, "");
+    // Empilha 5 entradas de guarda para ter buffer suficiente
+    for (let i = 0; i < 5; i++) {
+      window.history.pushState({ app: true }, "");
+    }
 
     const onPopState = () => {
+      // Repõe 2 entradas a cada pop para não esgotar o buffer
+      window.history.pushState({ app: true }, "");
       window.history.pushState({ app: true }, "");
       if (showModalRef.current) {
         setShowAddModal(false);

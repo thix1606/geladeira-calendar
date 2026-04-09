@@ -200,7 +200,9 @@ const CalendarView = ({ currentDate, events, onDayPress, onMonthChange, onSignOu
         })}
       </div>
 
-      <BuildVersion />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, pointerEvents: 'none' }}>
+        <BuildVersion />
+      </div>
     </div>
   );
 };

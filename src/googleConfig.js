@@ -7,8 +7,8 @@
 // =============================================================
 
 const GOOGLE_CONFIG = {
-  API_KEY:   process.env.REACT_APP_API_KEY,
-  CLIENT_ID: process.env.REACT_APP_CLIENT_ID,
+  API_KEY:   process.env.REACT_APP_GOOGLE_API_KEY   || process.env.REACT_APP_API_KEY,
+  CLIENT_ID: process.env.REACT_APP_GOOGLE_CLIENT_ID || process.env.REACT_APP_CLIENT_ID,
 
   CALENDAR_NAME: "Calendário Mágico ⭐",
   TIMEZONE:      "America/Sao_Paulo",

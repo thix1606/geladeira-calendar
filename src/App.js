@@ -63,16 +63,22 @@ function App() {
     setSelectedDate(null);
   }, []);
 
+  // Garante que o app nunca sai por back do browser
+  useEffect(() => {
+    // Empurra duas entradas no histórico para absorver qualquer back anterior
+    window.history.pushState({ app: true }, "");
+    window.history.pushState({ app: true }, "");
+  }, []); // só na montagem inicial
+
   useEffect(() => {
     const onPopState = () => {
       if (view === "day" || view === "settings") {
         handleBackToMonth();
-      } else {
-        window.history.pushState(null, "");
       }
+      // Sempre re-empurra para manter o app no histórico
+      window.history.pushState({ app: true }, "");
     };
     window.addEventListener("popstate", onPopState);
-    window.history.replaceState(null, "");
     return () => window.removeEventListener("popstate", onPopState);
   }, [view, handleBackToMonth]);
 

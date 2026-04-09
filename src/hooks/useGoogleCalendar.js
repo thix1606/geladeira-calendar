@@ -130,15 +130,8 @@ const useGoogleCalendar = () => {
 
         if (cancelled) return;
 
-        // Configura token client com ux_mode redirect
-        tokenClientRef.current = window.google.accounts.oauth2.initTokenClient({
-          client_id:    GOOGLE_CONFIG.CLIENT_ID,
-          scope:        GOOGLE_CONFIG.SCOPES,
-          ux_mode:      'redirect',
-          redirect_uri: window.location.origin + window.location.pathname,
-          // callback não é usado no modo redirect (token vem no hash)
-          callback: () => {},
-        });
+        // Token client para fallback (não usado no fluxo principal)
+        tokenClientRef.current = { ready: true };
 
         if (cancelled) return;
 
@@ -165,8 +158,16 @@ const useGoogleCalendar = () => {
 
   // ── Auth ──────────────────────────────────────────────
 
+  // Redirect manual para OAuth — evita popup e problemas de COOP
   const signIn = useCallback(() => {
-    tokenClientRef.current?.requestAccessToken({ prompt: 'consent' });
+    const params = new URLSearchParams({
+      client_id:     GOOGLE_CONFIG.CLIENT_ID,
+      redirect_uri:  window.location.origin,
+      response_type: 'token',
+      scope:         GOOGLE_CONFIG.SCOPES,
+      include_granted_scopes: 'true',
+    });
+    window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?${params}`;
   }, []);
 
   const signOut = useCallback(() => {

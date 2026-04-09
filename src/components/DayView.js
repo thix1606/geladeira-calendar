@@ -43,7 +43,7 @@ function colorEventTitle(colorName) { return `📌 Dia com ${colorName}`; }
 function isColorEvent(event) { return (event.summary || "").startsWith("📌 Dia com "); }
 
 const DayView = ({
-  date, events, onBack, onAddEvent, onDeleteEvent, onUpdateEvent,
+  date, events, onBack, onAddEvent, onDeleteEvent, onUpdateEvent, onMoveOrCopyEvent,
   dayColor,
   colorsConfig,
   onSetDayColor,
@@ -118,6 +118,7 @@ const DayView = ({
             await onUpdateEvent?.(id, data);
             setEditingEv(null);
           }}
+          onMoveOrCopy={onMoveOrCopyEvent}
           onClose={() => setEditingEv(null)}
         />
       )}

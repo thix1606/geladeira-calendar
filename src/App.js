@@ -29,7 +29,7 @@ function App() {
 
   const {
     isSignedIn, isLoading, error, events, calendarId,
-    blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, fetchEvents,
+    blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents,
   } = useGoogleCalendar();
 
   const {
@@ -243,6 +243,10 @@ function App() {
           onAddEvent={() => handleOpenAddModal(selectedDate)}
           onDeleteEvent={deleteEvent}
           onUpdateEvent={updateEvent}
+          onMoveOrCopyEvent={async (id, date, mode) => {
+            await moveOrCopyEvent(id, date, mode);
+            if (selectedDate) fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
+          }}
           dayColor={getDayColor(selectedDate)}
           colorsConfig={colorsConfig}
           onSetDayColor={(colorId) => setDayColor(selectedDate, colorId)}

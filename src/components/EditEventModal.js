@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+const MONTH_PT = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+
 const EMOJIS = [
   "🎂","🎉","🏫","🏊","🎨","⚽","🎵","🐶","🌸","🍕",
   "🚀","🦋","🌈","🎀","🧸","🦄","🎠","🍦","🎭","🏄",
@@ -32,7 +34,7 @@ function extractTime(dateTime) {
   return `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-const EditEventModal = ({ event, onSave, onClose }) => {
+const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
   const [title,         setTitle]         = useState(extractTitle(event.summary));
   const [selectedEmoji, setSelectedEmoji] = useState(extractEmoji(event.summary));
   const [selectedColor, setSelectedColor] = useState(ID_COLOR_MAP[event.colorId] ?? "pink");
@@ -40,6 +42,12 @@ const EditEventModal = ({ event, onSave, onClose }) => {
   const [endTime,       setEndTime]       = useState(event.end?.dateTime   ? extractTime(event.end.dateTime)   : "");
   const [notes,         setNotes]         = useState(event.description ?? "");
   const [saving,        setSaving]        = useState(false);
+
+  // Painel de mover/copiar
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [targetDate,     setTargetDate]     = useState(""); // "YYYY-MM-DD"
+  const [moveMode,       setMoveMode]       = useState("move"); // "move" | "copy"
+  const [moveSaving,     setMoveSaving]     = useState(false);
 
   const handleSave = async () => {
     if (!title.trim()) return;
@@ -53,6 +61,15 @@ const EditEventModal = ({ event, onSave, onClose }) => {
       notes:     notes.trim() || null,
     });
     setSaving(false);
+  };
+
+  const handleMoveOrCopy = async () => {
+    if (!targetDate) return;
+    setMoveSaving(true);
+    const [y, m, d] = targetDate.split("-").map(Number);
+    await onMoveOrCopy?.(event.id, new Date(y, m - 1, d), moveMode);
+    setMoveSaving(false);
+    onClose();
   };
 
   return (
@@ -143,6 +160,63 @@ const EditEventModal = ({ event, onSave, onClose }) => {
           />
         </div>
 
+        {/* Mover / copiar */}
+        {!showDatePicker ? (
+          <button
+            className="cancel-btn"
+            onClick={() => setShowDatePicker(true)}
+            style={{ color: "var(--purple-d)", marginTop: 0 }}
+          >
+            📆 Mudar para outro dia
+          </button>
+        ) : (
+          <div style={styles.datePicker}>
+            <p style={styles.datePickerTitle}>📆 Mudar para outro dia</p>
+
+            <input
+              type="date"
+              value={targetDate}
+              onChange={(e) => setTargetDate(e.target.value)}
+              style={styles.dateInput}
+            />
+
+            {/* Mover ou copiar */}
+            <div style={styles.modeRow}>
+              {["move", "copy"].map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMoveMode(m)}
+                  style={{
+                    ...styles.modeBtn,
+                    background: moveMode === m ? "var(--purple-d)" : "#f0e8ff",
+                    color:      moveMode === m ? "#fff" : "var(--purple-d)",
+                  }}
+                >
+                  {m === "move" ? "📦 Mover" : "📋 Copiar"}
+                </button>
+              ))}
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                className="save-btn"
+                style={{ flex: 1, margin: 0 }}
+                onClick={handleMoveOrCopy}
+                disabled={!targetDate || moveSaving}
+              >
+                {moveSaving ? "Aguarde... ⏳" : moveMode === "move" ? "Mover" : "Copiar"}
+              </button>
+              <button
+                className="cancel-btn"
+                style={{ flex: 1, margin: 0 }}
+                onClick={() => setShowDatePicker(false)}
+              >
+                Voltar
+              </button>
+            </div>
+          </div>
+        )}
+
         <button
           className="save-btn"
           onClick={handleSave}
@@ -157,6 +231,33 @@ const EditEventModal = ({ event, onSave, onClose }) => {
       </div>
     </div>
   );
+};
+
+const styles = {
+  datePicker: {
+    background: "#f8f0ff", borderRadius: "1rem",
+    padding: "1rem", display: "flex",
+    flexDirection: "column", gap: "0.75rem",
+    marginBottom: "0.5rem",
+  },
+  datePickerTitle: {
+    fontSize: "0.9rem", fontWeight: 800,
+    color: "var(--purple-d)", margin: 0,
+  },
+  dateInput: {
+    width: "100%", boxSizing: "border-box",
+    border: "2px solid #e0c8ff", borderRadius: "0.75rem",
+    padding: "0.6rem 0.9rem", fontSize: "1rem",
+    fontFamily: "var(--font-body)", outline: "none",
+    color: "var(--text)",
+  },
+  modeRow: { display: "flex", gap: 8 },
+  modeBtn: {
+    flex: 1, border: "none", borderRadius: "0.75rem",
+    padding: "0.65rem", fontSize: "0.95rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    transition: "background 0.15s",
+  },
 };
 
 export default EditEventModal;

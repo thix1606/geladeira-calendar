@@ -334,7 +334,55 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId, isSignedIn, fetchEvents]);
 
-  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, fetchEvents };
+  // Move ou copia um evento para outra data
+  const moveOrCopyEvent = useCallback(async (eventId, targetDate, mode) => {
+    // mode: 'move' | 'copy'
+    if (!calendarId) return null;
+    try {
+      const existing = events.find((e) => e.id === eventId);
+      if (!existing) return null;
+
+      const dateStr = `${targetDate.getFullYear()}-${String(targetDate.getMonth()+1).padStart(2,'0')}-${String(targetDate.getDate()).padStart(2,'0')}`;
+
+      // Monta o resource com a nova data, preservando hora e restante
+      const resource = { ...existing };
+      delete resource.id; delete resource.etag; delete resource.kind;
+      delete resource.created; delete resource.updated;
+      delete resource.creator; delete resource.organizer;
+      delete resource.iCalUID; delete resource.sequence;
+      delete resource.htmlLink; delete resource.status;
+
+      if (existing.start?.dateTime) {
+        const origStart = new Date(existing.start.dateTime);
+        const origEnd   = new Date(existing.end.dateTime);
+        const duration  = origEnd - origStart;
+        const newStart  = new Date(`${dateStr}T${origStart.toTimeString().slice(0,8)}`);
+        const newEnd    = new Date(newStart.getTime() + duration);
+        resource.start = { dateTime: newStart.toISOString(), timeZone: existing.start.timeZone ?? 'America/Sao_Paulo' };
+        resource.end   = { dateTime: newEnd.toISOString(),   timeZone: existing.end.timeZone   ?? 'America/Sao_Paulo' };
+      } else {
+        resource.start = { date: dateStr };
+        resource.end   = { date: dateStr };
+      }
+
+      if (mode === 'move') {
+        // Atualiza o evento existente com a nova data
+        const res = await window.gapi.client.calendar.events.update({ calendarId, eventId, resource });
+        setEvents((prev) => prev.map((e) => e.id === eventId ? res.result : e));
+        return res.result;
+      } else {
+        // Cria um novo evento (cópia) na nova data
+        const res = await window.gapi.client.calendar.events.insert({ calendarId, resource });
+        setEvents((prev) => [...prev, res.result]);
+        return res.result;
+      }
+    } catch (err) {
+      console.error('Erro ao mover/copiar evento:', err);
+      return null;
+    }
+  }, [calendarId, events]);
+
+  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents };
 };
 
 export default useGoogleCalendar;

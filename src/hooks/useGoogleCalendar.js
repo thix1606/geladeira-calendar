@@ -136,11 +136,11 @@ const useGoogleCalendar = () => {
         if (cancelled) return;
 
         // Verifica se voltou de um redirect OAuth com token no hash
-        // Só processa depois que gapi.client está pronto
         const tokenFromHash = extractTokenFromHash();
+        console.log('[OAuth] hash bruto:', window.location.hash);
+        console.log('[OAuth] token extraído:', tokenFromHash ? tokenFromHash.slice(0, 20) + '...' : 'NENHUM');
         if (tokenFromHash) {
-          // Pequeno delay para garantir que gapi.client está totalmente inicializado
-          await new Promise(r => setTimeout(r, 300));
+          await new Promise(r => setTimeout(r, 500));
           await authenticateWithToken(tokenFromHash);
         }
 

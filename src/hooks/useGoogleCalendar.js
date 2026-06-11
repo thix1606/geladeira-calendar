@@ -365,7 +365,7 @@ const useGoogleCalendar = () => {
     } catch (err) {
       console.error("Erro ao deletar evento:", err);
     }
-  }, [calendarId]);
+  }, [calendarId, events]);
 
   const updateEvent = useCallback(async (eventId, { title, emoji, startTime, endTime, color, notes }) => {
     if (!calendarId) return null;
@@ -517,7 +517,29 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId, events]);
 
-  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, needsReAuth, signIn, signOut, renewAuth, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents };
+  const updateEventSeries = useCallback(async (masterId, { title, emoji, color, notes }) => {
+    if (!calendarId) return null;
+    try {
+      const colorMap = { pink:"4", purple:"3", blue:"1", green:"2", yellow:"5", red:"11", orange:"6" };
+      const resource = {
+        summary:     `${emoji} ${title}`,
+        description: notes || "",
+        colorId:     colorMap[color] || "4",
+      };
+      await window.gapi.client.calendar.events.patch({ calendarId, eventId: masterId, resource });
+      setEvents((prev) => prev.map((e) =>
+        e.recurringEventId === masterId
+          ? { ...e, summary: resource.summary, description: resource.description, colorId: resource.colorId }
+          : e
+      ));
+      return true;
+    } catch (err) {
+      console.error("Erro ao atualizar série:", err);
+      return null;
+    }
+  }, [calendarId]);
+
+  return { isSignedIn, isLoading, error, events, calendarId, blockedEmail, needsReAuth, signIn, signOut, renewAuth, addEvent, deleteEvent, updateEvent, updateEventSeries, moveOrCopyEvent, fetchEvents };
 };
 
 export default useGoogleCalendar;

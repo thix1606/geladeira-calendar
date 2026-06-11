@@ -7,8 +7,23 @@ import ConfirmModal from "./ConfirmModal";
 import EditEventModal from "./EditEventModal";
 import BuildVersion from "./BuildVersion";
 
-const WEEKDAY_PT = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
-const MONTH_PT   = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const WEEKDAY_PT     = ["Domingo","Segunda-feira","Terça-feira","Quarta-feira","Quinta-feira","Sexta-feira","Sábado"];
+const MONTH_PT       = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const WEEKDAY_LABELS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const DAY_CODE       = ["MO","TU","WE","TH","FR","SA","SU"];
+
+function buildRRule({ freq, weekdays, monthDay, bizPos, until }) {
+  let rule = "RRULE:FREQ=";
+  if (freq === "weekly") {
+    rule += `WEEKLY;BYDAY=${[...weekdays].sort().map(i => DAY_CODE[i]).join(",")}`;
+  } else if (freq === "monthly-day") {
+    rule += `MONTHLY;BYMONTHDAY=${monthDay}`;
+  } else {
+    rule += `MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=${bizPos}`;
+  }
+  if (until) rule += `;UNTIL=${until.replace(/-/g,"")}T235959Z`;
+  return rule;
+}
 
 const COLOR_BY_ID = {
   "1": "#74C0FC", "2": "#69DB7C", "3": "#C77DFF", "4": "#FF6B9D",
@@ -44,7 +59,7 @@ function colorEventTitle(colorName) { return `📌 Dia com ${colorName}`; }
 function isColorEvent(event) { return (event.summary || "").startsWith("📌 Dia com "); }
 
 const DayView = ({
-  date, events, onBack, onAddEvent, onDeleteEvent, onUpdateEvent, onMoveOrCopyEvent,
+  date, events, onBack, onAddEvent, onDeleteEvent, onUpdateEvent, onUpdateEventSeries, onMoveOrCopyEvent,
   dayColor,
   colorsConfig,
   onSetDayColor,
@@ -68,9 +83,18 @@ const DayView = ({
     return colorEv ? [colorEv, ...rest] : rest;
   }, [events, date]);
 
-  const [confirm,          setConfirm]          = useState(null);
-  const [recurringConfirm, setRecurringConfirm] = useState(null);
-  const [editingEv,        setEditingEv]        = useState(null);
+  const [confirm,              setConfirm]              = useState(null);
+  const [recurringConfirm,     setRecurringConfirm]     = useState(null);
+  const [editingEv,            setEditingEv]            = useState(null);
+
+  // Color recurrence dialog
+  const [pendingColorId,       setPendingColorId]       = useState(null);
+  const [colorRecurrStep,      setColorRecurrStep]      = useState('scope');
+  const [colorRecurrFreq,      setColorRecurrFreq]      = useState('weekly');
+  const [colorRecurrWDs,       setColorRecurrWDs]       = useState(new Set());
+  const [colorRecurrMonthDay,  setColorRecurrMonthDay]  = useState(() => date?.getDate() ?? 1);
+  const [colorRecurrBizPos,    setColorRecurrBizPos]    = useState(1);
+  const [colorRecurrUntil,     setColorRecurrUntil]     = useState('');
 
   if (!date) return null;
 
@@ -79,18 +103,28 @@ const DayView = ({
   const headerBg  = dayColor?.hex ?? null;
 
   async function handleSelectColor(colorId) {
-    // Remove evento anterior se existia cor
-    if (colorEventId) {
-      await onDeleteColorEvent(colorEventId);
-    }
     if (!colorId) {
+      if (colorEventId) await onDeleteColorEvent(colorEventId);
       onSetDayColor(null);
       return;
     }
+    // Show recurrence scope dialog
+    setPendingColorId(colorId);
+    setColorRecurrStep('scope');
+    setColorRecurrFreq('weekly');
+    setColorRecurrWDs(new Set());
+    setColorRecurrMonthDay(date?.getDate() ?? 1);
+    setColorRecurrBizPos(1);
+    setColorRecurrUntil('');
+  }
+
+  async function applyColorSelection(colorId, recurrence) {
+    if (colorEventId) await onDeleteColorEvent(colorEventId);
     const color = colorsConfig.find((c) => c.id === colorId);
-    if (!color) return;
+    if (!color) { setPendingColorId(null); return; }
     onSetDayColor(colorId);
-    await onCreateColorEvent(date, color.name);
+    await onCreateColorEvent(date, color.name, recurrence);
+    setPendingColorId(null);
   }
 
   const handleDelete = (ev) => {
@@ -150,12 +184,139 @@ const DayView = ({
         <EditEventModal
           event={editingEv}
           onSave={async (id, data) => {
-            await onUpdateEvent?.(id, data);
+            if (data.masterId) {
+              await onUpdateEventSeries?.(data.masterId, data);
+            } else {
+              await onUpdateEvent?.(id, data);
+            }
             setEditingEv(null);
           }}
           onMoveOrCopy={onMoveOrCopyEvent}
           onClose={() => setEditingEv(null)}
         />
+      )}
+      {/* Color recurrence dialog */}
+      {pendingColorId !== null && (
+        <div style={recurStyles.overlay} onClick={() => setPendingColorId(null)}>
+          <div style={recurStyles.sheet} onClick={(e) => e.stopPropagation()}>
+            <div style={recurStyles.handle} />
+            <div style={recurStyles.iconWrap}><span style={{ fontSize: "1.8rem" }}>🎨</span></div>
+            {colorRecurrStep === 'scope' ? (
+              <>
+                <h3 style={recurStyles.title}>Marcar cor do dia</h3>
+                <p style={recurStyles.message}>{colorsConfig.find(c => c.id === pendingColorId)?.name}</p>
+                <button
+                  style={{ ...recurStyles.btn, ...recurStyles.btnWarning }}
+                  onClick={() => applyColorSelection(pendingColorId, null)}
+                >
+                  📅 Só este dia
+                </button>
+                <button
+                  style={{ ...recurStyles.btn, ...recurStyles.btnDanger }}
+                  onClick={() => setColorRecurrStep('picker')}
+                >
+                  🔁 Recorrente...
+                </button>
+                <button style={{ ...recurStyles.btn, ...recurStyles.btnCancel }} onClick={() => setPendingColorId(null)}>
+                  Cancelar
+                </button>
+              </>
+            ) : (
+              <>
+                <h3 style={recurStyles.title}>Recorrência da cor</h3>
+                <div style={colorPickerStyles.freqRow}>
+                  {[
+                    { key: "weekly",            label: "Semanal" },
+                    { key: "monthly-day",        label: `Dia ${date?.getDate() ?? ""}` },
+                    { key: "monthly-first-biz",  label: "Dia útil" },
+                  ].map(({ key, label }) => (
+                    <button
+                      key={key}
+                      style={{ ...colorPickerStyles.freqBtn, ...(colorRecurrFreq === key ? colorPickerStyles.freqBtnActive : {}) }}
+                      onClick={() => setColorRecurrFreq(key)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {colorRecurrFreq === 'weekly' && (
+                  <>
+                    <div style={colorPickerStyles.wdRow}>
+                      {WEEKDAY_LABELS.map((wd, i) => (
+                        <button
+                          key={i}
+                          style={{ ...colorPickerStyles.wdBtn, ...(colorRecurrWDs.has(i) ? colorPickerStyles.wdBtnSelected : {}) }}
+                          onClick={() => setColorRecurrWDs(prev => {
+                            const next = new Set(prev);
+                            if (next.has(i)) next.delete(i); else next.add(i);
+                            return next;
+                          })}
+                        >
+                          {wd}
+                        </button>
+                      ))}
+                    </div>
+                    {colorRecurrWDs.size === 0 && (
+                      <p style={{ fontSize: "0.75rem", color: "#e03131", margin: 0 }}>Selecione pelo menos um dia.</p>
+                    )}
+                  </>
+                )}
+
+                {colorRecurrFreq === 'monthly-day' && (
+                  <div style={colorPickerStyles.paramRow}>
+                    <span style={colorPickerStyles.infoText}>Todo dia</span>
+                    <input
+                      type="number" min="1" max="31"
+                      value={colorRecurrMonthDay}
+                      onChange={(e) => setColorRecurrMonthDay(Math.min(31, Math.max(1, Number(e.target.value))))}
+                      style={colorPickerStyles.numInput}
+                    />
+                    <span style={colorPickerStyles.infoText}>de cada mês</span>
+                  </div>
+                )}
+
+                {colorRecurrFreq === 'monthly-first-biz' && (
+                  <div style={colorPickerStyles.paramRow}>
+                    <span style={colorPickerStyles.infoText}>O</span>
+                    <select
+                      value={colorRecurrBizPos}
+                      onChange={(e) => setColorRecurrBizPos(Number(e.target.value))}
+                      style={colorPickerStyles.numInput}
+                    >
+                      {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}º</option>)}
+                    </select>
+                    <span style={colorPickerStyles.infoText}>dia útil do mês</span>
+                  </div>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", flexWrap: "wrap" }}>
+                  <span style={{ fontSize: "0.78rem", color: "#888", fontWeight: 700, flexShrink: 0 }}>Repetir até (opcional):</span>
+                  <input
+                    type="date"
+                    value={colorRecurrUntil}
+                    onChange={(e) => setColorRecurrUntil(e.target.value)}
+                    style={{ ...colorPickerStyles.numInput, flex: 1, minWidth: 120 }}
+                  />
+                </div>
+
+                <button
+                  style={{ ...recurStyles.btn, ...recurStyles.btnDanger, opacity: colorRecurrFreq === 'weekly' && colorRecurrWDs.size === 0 ? 0.5 : 1 }}
+                  disabled={colorRecurrFreq === 'weekly' && colorRecurrWDs.size === 0}
+                  onClick={() => {
+                    const rrule = buildRRule({ freq: colorRecurrFreq, weekdays: colorRecurrWDs, monthDay: colorRecurrMonthDay, bizPos: colorRecurrBizPos, until: colorRecurrUntil });
+                    applyColorSelection(pendingColorId, rrule);
+                  }}
+                >
+                  🔁 Confirmar recorrência
+                </button>
+                <button style={{ ...recurStyles.btn, ...recurStyles.btnCancel }} onClick={() => setColorRecurrStep('scope')}>
+                  Voltar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       )}
       {/* Header */}
       <div
@@ -343,6 +504,35 @@ const recurStyles = {
   btnWarning: { background: "linear-gradient(135deg,#FFA94D,#e07b00)", color: "#fff", boxShadow: "0 4px 16px rgba(255,169,77,0.35)" },
   btnDanger:  { background: "linear-gradient(135deg,#ff6b6b,#e03131)", color: "#fff", boxShadow: "0 4px 16px rgba(255,107,107,0.35)" },
   btnCancel:  { background: "#f8f0ff", color: "#7B2FBE" },
+};
+
+const colorPickerStyles = {
+  freqRow: { display: "flex", gap: 6, width: "100%", flexWrap: "wrap" },
+  freqBtn: {
+    flex: "1 1 auto", border: "none", borderRadius: "0.75rem",
+    padding: "0.5rem 0.4rem", fontSize: "0.82rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    background: "#ede4ff", color: "#7B2FBE",
+    transition: "background 0.15s",
+  },
+  freqBtnActive: { background: "#7B2FBE", color: "#fff" },
+  wdRow: { display: "flex", gap: 4, width: "100%", justifyContent: "space-between" },
+  wdBtn: {
+    flex: 1, border: "none", borderRadius: "0.5rem",
+    padding: "0.45rem 0", fontSize: "0.72rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    background: "#ede4ff", color: "#7B2FBE",
+    transition: "background 0.12s",
+  },
+  wdBtnSelected: { background: "#7B2FBE", color: "#fff" },
+  paramRow: { display: "flex", alignItems: "center", gap: 8, width: "100%" },
+  infoText: { fontSize: "0.82rem", color: "#7B2FBE", fontStyle: "italic" },
+  numInput: {
+    border: "2px solid #e0c8ff", borderRadius: "0.5rem",
+    padding: "0.4rem 0.6rem", fontSize: "0.85rem",
+    fontFamily: "var(--font-body)", outline: "none", color: "#3A1A3E",
+    width: 60, textAlign: "center",
+  },
 };
 
 export default DayView;

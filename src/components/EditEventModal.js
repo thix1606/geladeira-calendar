@@ -152,6 +152,8 @@ const mcStyles = {
 
 // ── Modal principal ─────────────────────────────────────────
 const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
+  const isRecurrInstance = !!event.recurringEventId;
+
   const [title,         setTitle]         = useState(extractTitle(event.summary));
   const [selectedEmoji, setSelectedEmoji] = useState(extractEmoji(event.summary));
   const [selectedColor, setSelectedColor] = useState(ID_COLOR_MAP[event.colorId] ?? "pink");
@@ -159,6 +161,7 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
   const [endTime,       setEndTime]       = useState(event.end?.dateTime   ? extractTime(event.end.dateTime)   : "");
   const [notes,         setNotes]         = useState(event.description ?? "");
   const [saving,        setSaving]        = useState(false);
+  const [editScope,     setEditScope]     = useState(isRecurrInstance ? "series" : "instance");
 
   // Painel de mover/copiar
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -175,14 +178,18 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
   const handleSave = async () => {
     if (!title.trim()) return;
     setSaving(true);
-    await onSave(event.id, {
+    const data = {
       title: title.trim(),
       emoji: selectedEmoji,
       startTime: startTime || null,
       endTime:   endTime   || null,
       color:     selectedColor,
       notes:     notes.trim() || null,
-    });
+    };
+    if (isRecurrInstance && editScope === "series") {
+      data.masterId = event.recurringEventId;
+    }
+    await onSave(event.id, data);
     setSaving(false);
   };
 
@@ -237,6 +244,27 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
         <div className="modal-title">
           Editar Compromisso ✏️
         </div>
+
+        {/* Escopo de edição — só para instâncias recorrentes */}
+        {isRecurrInstance && (
+          <div className="modal-section">
+            <div className="modal-label">Editar...</div>
+            <div style={styles.modeRow}>
+              <button
+                style={{ ...styles.modeBtn, ...(editScope === "instance" ? styles.modeBtnActive : {}) }}
+                onClick={() => setEditScope("instance")}
+              >
+                📅 Só este dia
+              </button>
+              <button
+                style={{ ...styles.modeBtn, ...(editScope === "series" ? styles.modeBtnActive : {}) }}
+                onClick={() => setEditScope("series")}
+              >
+                🔁 Toda a série
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Nome */}
         <div className="modal-section">
@@ -402,6 +430,15 @@ const EditEventModal = ({ event, onSave, onClose, onMoveOrCopy }) => {
 };
 
 const styles = {
+  modeRow: { display: "flex", gap: 8 },
+  modeBtn: {
+    flex: 1, border: "none", borderRadius: "0.75rem",
+    padding: "0.6rem 0.5rem", fontSize: "0.88rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    background: "#f0e8ff", color: "var(--purple-d)",
+    transition: "background 0.15s",
+  },
+  modeBtnActive: { background: "var(--purple-d)", color: "#fff" },
   datePicker: {
     background: "#f8f0ff", borderRadius: "1rem",
     padding: "1rem", display: "flex",

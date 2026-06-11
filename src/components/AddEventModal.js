@@ -21,15 +21,15 @@ const DAY_CODE       = ["MO","TU","WE","TH","FR","SA","SU"];
 
 const MONTH_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 
-function buildRRule({ freq, weekdays, date, until }) {
+function buildRRule({ freq, weekdays, monthDay, bizPos, until }) {
   let rule = "RRULE:FREQ=";
   if (freq === "weekly") {
     const byday = [...weekdays].sort().map(i => DAY_CODE[i]).join(",");
     rule += `WEEKLY;BYDAY=${byday}`;
   } else if (freq === "monthly-day") {
-    rule += `MONTHLY;BYMONTHDAY=${date.getDate()}`;
+    rule += `MONTHLY;BYMONTHDAY=${monthDay}`;
   } else {
-    rule += "MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=1";
+    rule += `MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=${bizPos}`;
   }
   if (until) rule += `;UNTIL=${until.replace(/-/g,"")}T235959Z`;
   return rule;
@@ -48,6 +48,8 @@ const AddEventModal = ({ date, onSave, onClose }) => {
   const [isRecurring,    setIsRecurring]    = useState(false);
   const [recurrFreq,     setRecurrFreq]     = useState("weekly");
   const [recurrWeekdays, setRecurrWeekdays] = useState(new Set());
+  const [recurrMonthDay, setRecurrMonthDay] = useState(() => date?.getDate() ?? 1);
+  const [recurrBizPos,   setRecurrBizPos]   = useState(1);
   const [recurrUntil,    setRecurrUntil]    = useState("");
 
   const dateLabel = date
@@ -69,7 +71,7 @@ const AddEventModal = ({ date, onSave, onClose }) => {
     if (!canSave) return;
     setSaving(true);
     const recurrence = isRecurring
-      ? buildRRule({ freq: recurrFreq, weekdays: recurrWeekdays, date, until: recurrUntil })
+      ? buildRRule({ freq: recurrFreq, weekdays: recurrWeekdays, monthDay: recurrMonthDay, bizPos: recurrBizPos, until: recurrUntil })
       : null;
     await onSave({
       title: title.trim(),
@@ -240,15 +242,33 @@ const AddEventModal = ({ date, onSave, onClose }) => {
               )}
 
               {recurrFreq === "monthly-day" && (
-                <p style={styles.infoText}>
-                  Repetirá todo dia <strong>{date?.getDate()}</strong> de cada mês.
-                </p>
+                <div style={{ ...styles.untilRow, alignItems: "center" }}>
+                  <span style={styles.infoText}>Todo dia</span>
+                  <input
+                    type="number"
+                    min="1" max="31"
+                    value={recurrMonthDay}
+                    onChange={(e) => setRecurrMonthDay(Math.min(31, Math.max(1, Number(e.target.value))))}
+                    style={{ ...styles.untilInput, width: 60, textAlign: "center" }}
+                  />
+                  <span style={styles.infoText}>de cada mês</span>
+                </div>
               )}
 
               {recurrFreq === "monthly-first-biz" && (
-                <p style={styles.infoText}>
-                  Repetirá no 1º dia útil (seg–sex) de cada mês.
-                </p>
+                <div style={{ ...styles.untilRow, alignItems: "center" }}>
+                  <span style={styles.infoText}>O</span>
+                  <select
+                    value={recurrBizPos}
+                    onChange={(e) => setRecurrBizPos(Number(e.target.value))}
+                    style={{ ...styles.untilInput, width: 90 }}
+                  >
+                    {[1,2,3,4,5].map(n => (
+                      <option key={n} value={n}>{n}º</option>
+                    ))}
+                  </select>
+                  <span style={styles.infoText}>dia útil do mês</span>
+                </div>
               )}
 
               {/* Repetir até */}

@@ -68,8 +68,9 @@ const DayView = ({
     return colorEv ? [colorEv, ...rest] : rest;
   }, [events, date]);
 
-  const [confirm,   setConfirm]   = useState(null);
-  const [editingEv,  setEditingEv] = useState(null);
+  const [confirm,          setConfirm]          = useState(null);
+  const [recurringConfirm, setRecurringConfirm] = useState(null);
+  const [editingEv,        setEditingEv]        = useState(null);
 
   if (!date) return null;
 
@@ -93,18 +94,50 @@ const DayView = ({
   }
 
   const handleDelete = (ev) => {
-    setConfirm({
-      title:   "Apagar compromisso?",
-      message: ev.summary?.replace(/^\p{Emoji}\s*/u, "") || "",
-      onConfirm: () => {
-        setConfirm(null);
-        onDeleteEvent(ev.id);
-      },
-    });
+    if (ev.recurringEventId) {
+      setRecurringConfirm({ ev, title: ev.summary?.replace(/^\p{Emoji}\s*/u, "") || "" });
+    } else {
+      setConfirm({
+        title:   "Apagar compromisso?",
+        message: ev.summary?.replace(/^\p{Emoji}\s*/u, "") || "",
+        onConfirm: () => {
+          setConfirm(null);
+          onDeleteEvent(ev.id);
+        },
+      });
+    }
   };
 
   return (
     <div className="day-view">
+      {recurringConfirm && (
+        <div style={recurStyles.overlay} onClick={() => setRecurringConfirm(null)}>
+          <div style={recurStyles.sheet} onClick={(e) => e.stopPropagation()}>
+            <div style={recurStyles.handle} />
+            <div style={recurStyles.iconWrap}><span style={{ fontSize: "1.8rem" }}>🔁</span></div>
+            <h3 style={recurStyles.title}>Apagar compromisso recorrente?</h3>
+            <p style={recurStyles.message}>{recurringConfirm.title}</p>
+            <button
+              style={{ ...recurStyles.btn, ...recurStyles.btnWarning }}
+              onClick={() => { setRecurringConfirm(null); onDeleteEvent(recurringConfirm.ev.id, 'instance'); }}
+            >
+              Só este dia
+            </button>
+            <button
+              style={{ ...recurStyles.btn, ...recurStyles.btnDanger }}
+              onClick={() => { setRecurringConfirm(null); onDeleteEvent(recurringConfirm.ev.id, 'series'); }}
+            >
+              Toda a série
+            </button>
+            <button
+              style={{ ...recurStyles.btn, ...recurStyles.btnCancel }}
+              onClick={() => setRecurringConfirm(null)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
       {confirm && (
         <ConfirmModal
           title={confirm.title}
@@ -278,6 +311,38 @@ const DayView = ({
       )}
     </div>
   );
+};
+
+const recurStyles = {
+  overlay: {
+    position: "fixed", inset: 0, zIndex: 210,
+    background: "rgba(58,26,62,0.45)", backdropFilter: "blur(4px)",
+    display: "flex", alignItems: "flex-end", justifyContent: "center",
+  },
+  sheet: {
+    background: "#fff", borderRadius: "2rem 2rem 0 0",
+    padding: "0 1.5rem 2.5rem", width: "100%", maxWidth: 480,
+    display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem",
+    boxShadow: "0 -8px 40px rgba(199,125,255,0.2)",
+    animation: "slideUp 0.25s cubic-bezier(0.34,1.56,0.64,1)",
+  },
+  handle: { width: 40, height: 4, borderRadius: 2, background: "#e0d0f0", margin: "0.75rem 0 1rem", flexShrink: 0 },
+  iconWrap: {
+    width: 64, height: 64, borderRadius: "50%",
+    background: "linear-gradient(135deg,#f0e8ff,#e0c8ff)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    marginBottom: "0.25rem", boxShadow: "0 4px 16px rgba(199,125,255,0.2)",
+  },
+  title: { fontSize: "1.1rem", fontWeight: 800, color: "#3A1A3E", textAlign: "center", margin: "0.25rem 0 0", fontFamily: "'Baloo 2', cursive" },
+  message: { fontSize: "0.9rem", color: "#8A5A9A", textAlign: "center", lineHeight: 1.5, margin: "0 0 0.5rem" },
+  btn: {
+    width: "100%", border: "none", borderRadius: "1rem", padding: "0.9rem",
+    fontSize: "1rem", fontWeight: 700, cursor: "pointer", marginTop: "0.2rem",
+    fontFamily: "'Nunito', sans-serif",
+  },
+  btnWarning: { background: "linear-gradient(135deg,#FFA94D,#e07b00)", color: "#fff", boxShadow: "0 4px 16px rgba(255,169,77,0.35)" },
+  btnDanger:  { background: "linear-gradient(135deg,#ff6b6b,#e03131)", color: "#fff", boxShadow: "0 4px 16px rgba(255,107,107,0.35)" },
+  btnCancel:  { background: "#f8f0ff", color: "#7B2FBE" },
 };
 
 export default DayView;

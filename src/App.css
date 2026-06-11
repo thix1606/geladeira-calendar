@@ -565,6 +565,39 @@ html, body {
   margin-left: 2px;
 }
 
+/* ── Weekday picker (recurrence) ── */
+.wd-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.wd-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #e0c8ff;
+  background: #fff;
+  color: var(--purple-d);
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s;
+  font-family: var(--font-body);
+  flex-shrink: 0;
+  min-height: var(--touch-min);
+  min-width: var(--touch-min);
+}
+
+.wd-btn.selected {
+  background: var(--purple-d);
+  color: #fff;
+  border-color: transparent;
+}
+
 .event-count-badge {
   font-size: 0.62rem;
   font-weight: 800;

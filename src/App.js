@@ -34,7 +34,7 @@ function App() {
 
   const {
     isSignedIn, isLoading, error, events, calendarId,
-    blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, moveOrCopyEvent, fetchEvents,
+    blockedEmail, signIn, signOut, addEvent, deleteEvent, updateEvent, updateEventSeries, moveOrCopyEvent, fetchEvents,
     needsReAuth, renewAuth,
   } = useGoogleCalendar();
 
@@ -173,7 +173,7 @@ function App() {
     return dayEv?.id ?? null;
   }, [events, selectedDate]);
 
-  const handleCreateColorEvent = useCallback(async (date, colorName) => {
+  const handleCreateColorEvent = useCallback(async (date, colorName, recurrence = null) => {
     const dateStr = dateKey(date);
     const [y, m, d] = dateStr.split("-");
     const result = await addEvent({
@@ -184,6 +184,7 @@ function App() {
       endTime: null,
       color: "pink",
       notes: "",
+      recurrence,
     });
     if (result) await fetchEvents(date.getFullYear(), date.getMonth() + 1);
     return result;
@@ -401,6 +402,7 @@ function App() {
           dayColor={getDayColor(selectedDate)}
           colorsConfig={colorsConfig}
           onSetDayColor={(colorId) => setDayColor(selectedDate, colorId)}
+          onUpdateEventSeries={updateEventSeries}
           onCreateColorEvent={handleCreateColorEvent}
           onDeleteColorEvent={handleDeleteColorEvent}
           colorEventId={colorEventId}

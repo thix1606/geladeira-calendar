@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState } from "react";
 
 const EMOJIS = [
   "🎂","🎉","🏫","🏊","🎨","⚽","🎵","🐶","🌸","🍕",
@@ -16,32 +16,70 @@ const COLORS = [
   { key: "red",    hex: "#FF6B6B", label: "Vermelho" },
 ];
 
+const WEEKDAY_LABELS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+const DAY_CODE       = ["MO","TU","WE","TH","FR","SA","SU"];
+
 const MONTH_PT = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 
+function buildRRule({ freq, weekdays, date, until }) {
+  let rule = "RRULE:FREQ=";
+  if (freq === "weekly") {
+    const byday = [...weekdays].sort().map(i => DAY_CODE[i]).join(",");
+    rule += `WEEKLY;BYDAY=${byday}`;
+  } else if (freq === "monthly-day") {
+    rule += `MONTHLY;BYMONTHDAY=${date.getDate()}`;
+  } else {
+    rule += "MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=1";
+  }
+  if (until) rule += `;UNTIL=${until.replace(/-/g,"")}T235959Z`;
+  return rule;
+}
+
 const AddEventModal = ({ date, onSave, onClose }) => {
-  const [title, setTitle] = useState("");
-  const [selectedEmoji, setSelectedEmoji] = useState("🎉");
-  const [selectedColor, setSelectedColor] = useState("pink");
-  const [startTime, setStartTime] = useState("");
-  const [endTime, setEndTime] = useState("");
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [title,          setTitle]          = useState("");
+  const [selectedEmoji,  setSelectedEmoji]  = useState("🎉");
+  const [selectedColor,  setSelectedColor]  = useState("pink");
+  const [startTime,      setStartTime]      = useState("");
+  const [endTime,        setEndTime]        = useState("");
+  const [notes,          setNotes]          = useState("");
+  const [saving,         setSaving]         = useState(false);
+
+  // Recorrência
+  const [isRecurring,    setIsRecurring]    = useState(false);
+  const [recurrFreq,     setRecurrFreq]     = useState("weekly");
+  const [recurrWeekdays, setRecurrWeekdays] = useState(new Set());
+  const [recurrUntil,    setRecurrUntil]    = useState("");
 
   const dateLabel = date
     ? `${date.getDate()} de ${MONTH_PT[date.getMonth()].charAt(0).toUpperCase() + MONTH_PT[date.getMonth()].slice(1)}`
     : "";
 
+  const toggleWeekday = (i) => {
+    setRecurrWeekdays(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  };
+
+  const canSave = title.trim() &&
+    !(isRecurring && recurrFreq === "weekly" && recurrWeekdays.size === 0);
+
   const handleSave = async () => {
-    if (!title.trim()) return;
+    if (!canSave) return;
     setSaving(true);
+    const recurrence = isRecurring
+      ? buildRRule({ freq: recurrFreq, weekdays: recurrWeekdays, date, until: recurrUntil })
+      : null;
     await onSave({
       title: title.trim(),
       emoji: selectedEmoji,
       date,
       startTime: startTime || null,
-      endTime: endTime || null,
-      color: selectedColor,
-      notes: notes.trim() || null,
+      endTime:   endTime   || null,
+      color:     selectedColor,
+      notes:     notes.trim() || null,
+      recurrence,
     });
     setSaving(false);
   };
@@ -138,11 +176,100 @@ const AddEventModal = ({ date, onSave, onClose }) => {
           />
         </div>
 
+        {/* Recorrência */}
+        <div className="modal-section">
+          <div className="modal-label">Recorrência (opcional)</div>
+
+          {/* Toggle único / recorrente */}
+          <div style={styles.modeRow}>
+            <button
+              style={{ ...styles.modeBtn, ...(isRecurring ? {} : styles.modeBtnActive) }}
+              onClick={() => setIsRecurring(false)}
+            >
+              📅 Evento único
+            </button>
+            <button
+              style={{ ...styles.modeBtn, ...(isRecurring ? styles.modeBtnActive : {}) }}
+              onClick={() => setIsRecurring(true)}
+            >
+              🔁 Recorrente
+            </button>
+          </div>
+
+          {isRecurring && (
+            <div style={styles.recurrBox}>
+              {/* Tipo de frequência */}
+              <div style={{ ...styles.modeRow, flexWrap: "wrap" }}>
+                {[
+                  { key: "weekly",           label: "Semanal" },
+                  { key: "monthly-day",      label: `Todo dia ${date?.getDate() ?? ""}` },
+                  { key: "monthly-first-biz",label: "1º dia útil" },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    style={{
+                      ...styles.freqBtn,
+                      ...(recurrFreq === key ? styles.freqBtnActive : {}),
+                    }}
+                    onClick={() => setRecurrFreq(key)}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dias da semana */}
+              {recurrFreq === "weekly" && (
+                <>
+                  <div className="wd-picker">
+                    {WEEKDAY_LABELS.map((wd, i) => (
+                      <button
+                        key={i}
+                        className={`wd-btn${recurrWeekdays.has(i) ? " selected" : ""}`}
+                        onClick={() => toggleWeekday(i)}
+                        aria-pressed={recurrWeekdays.has(i)}
+                      >
+                        {wd}
+                      </button>
+                    ))}
+                  </div>
+                  {recurrWeekdays.size === 0 && (
+                    <p style={styles.hint}>Selecione pelo menos um dia da semana.</p>
+                  )}
+                </>
+              )}
+
+              {recurrFreq === "monthly-day" && (
+                <p style={styles.infoText}>
+                  Repetirá todo dia <strong>{date?.getDate()}</strong> de cada mês.
+                </p>
+              )}
+
+              {recurrFreq === "monthly-first-biz" && (
+                <p style={styles.infoText}>
+                  Repetirá no 1º dia útil (seg–sex) de cada mês.
+                </p>
+              )}
+
+              {/* Repetir até */}
+              <div style={styles.untilRow}>
+                <span style={styles.untilLabel}>Repetir até (opcional):</span>
+                <input
+                  type="date"
+                  value={recurrUntil}
+                  onChange={(e) => setRecurrUntil(e.target.value)}
+                  style={styles.untilInput}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Botões */}
         <button
           className="save-btn"
           onClick={handleSave}
-          disabled={!title.trim() || saving}
+          disabled={!canSave || saving}
         >
           {saving ? "Salvando... ⏳" : `Salvar ${selectedEmoji}`}
         </button>
@@ -153,6 +280,39 @@ const AddEventModal = ({ date, onSave, onClose }) => {
       </div>
     </div>
   );
+};
+
+const styles = {
+  modeRow: { display: "flex", gap: 8, marginBottom: 8 },
+  modeBtn: {
+    flex: 1, border: "none", borderRadius: "0.75rem",
+    padding: "0.6rem 0.5rem", fontSize: "0.88rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    background: "#f0e8ff", color: "var(--purple-d)",
+    transition: "background 0.15s",
+  },
+  modeBtnActive: { background: "var(--purple-d)", color: "#fff" },
+  recurrBox: {
+    background: "#f8f0ff", borderRadius: "0.75rem",
+    padding: "0.75rem", display: "flex", flexDirection: "column", gap: "0.6rem",
+  },
+  freqBtn: {
+    flex: "1 1 auto", border: "none", borderRadius: "0.75rem",
+    padding: "0.5rem 0.4rem", fontSize: "0.82rem", fontWeight: 700,
+    cursor: "pointer", fontFamily: "var(--font-body)",
+    background: "#ede4ff", color: "var(--purple-d)",
+    transition: "background 0.15s",
+  },
+  freqBtnActive: { background: "var(--purple-d)", color: "#fff" },
+  hint: { fontSize: "0.75rem", color: "#e03131", margin: 0 },
+  infoText: { fontSize: "0.82rem", color: "#7B2FBE", margin: 0, fontStyle: "italic" },
+  untilRow: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
+  untilLabel: { fontSize: "0.78rem", color: "#888", fontWeight: 700, flexShrink: 0 },
+  untilInput: {
+    flex: 1, minWidth: 0, border: "2px solid #e0c8ff", borderRadius: "0.5rem",
+    padding: "0.4rem 0.6rem", fontSize: "0.85rem",
+    fontFamily: "var(--font-body)", outline: "none", color: "var(--text)",
+  },
 };
 
 export default AddEventModal;

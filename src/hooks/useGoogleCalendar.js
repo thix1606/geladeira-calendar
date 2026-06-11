@@ -326,7 +326,7 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId]);
 
-  const addEvent = useCallback(async ({ title, emoji, date, startTime, endTime, color, notes }) => {
+  const addEvent = useCallback(async ({ title, emoji, date, startTime, endTime, color, notes, recurrence }) => {
     if (!calendarId) return null;
     try {
       const colorMap = { pink:"4", purple:"3", blue:"1", green:"2", yellow:"5", red:"11", orange:"6" };
@@ -341,6 +341,7 @@ const useGoogleCalendar = () => {
         resource.start = { date: dateStr };
         resource.end   = { date: dateStr };
       }
+      if (recurrence) resource.recurrence = [recurrence];
       const res = await window.gapi.client.calendar.events.insert({ calendarId, resource });
       return res.result;
     } catch (err) {
@@ -349,11 +350,18 @@ const useGoogleCalendar = () => {
     }
   }, [calendarId]);
 
-  const deleteEvent = useCallback(async (eventId) => {
+  const deleteEvent = useCallback(async (eventId, mode = 'instance') => {
     if (!calendarId) return;
     try {
-      await window.gapi.client.calendar.events.delete({ calendarId, eventId });
-      setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      if (mode === 'series') {
+        const instance = events.find((e) => e.id === eventId);
+        const masterId = instance?.recurringEventId ?? eventId;
+        await window.gapi.client.calendar.events.delete({ calendarId, eventId: masterId });
+        setEvents((prev) => prev.filter((e) => e.recurringEventId !== masterId && e.id !== masterId));
+      } else {
+        await window.gapi.client.calendar.events.delete({ calendarId, eventId });
+        setEvents((prev) => prev.filter((e) => e.id !== eventId));
+      }
     } catch (err) {
       console.error("Erro ao deletar evento:", err);
     }

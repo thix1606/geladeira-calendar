@@ -191,7 +191,7 @@ function App() {
   }, [addEvent, fetchEvents]);
 
   const handleDeleteColorEvent = useCallback(async (eventId) => {
-    await deleteEvent(eventId);
+    await deleteEvent(eventId, 'series');
     if (selectedDate) await fetchEvents(selectedDate.getFullYear(), selectedDate.getMonth() + 1);
   }, [deleteEvent, fetchEvents, selectedDate]);
 
